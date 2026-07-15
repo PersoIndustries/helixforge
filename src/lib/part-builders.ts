@@ -496,14 +496,18 @@ function buildKnurledCylinder(
   const segments = Math.max(96, ridges * 2);
   const geom = new THREE.CylinderGeometry(radius, radius, height, segments, 1, true);
   const pos = geom.attributes.position as THREE.BufferAttribute;
-  const bump = 0.15 + Math.max(0, Math.min(1, intensity)) * 0.7; // mm
+  // Grooves are cut INWARD from the nominal outer radius so the outer envelope
+  // stays at `radius`. This lets top/bottom discs and seam rings at `outerR`
+  // close the mesh cleanly without leaving gaps around bumps that would
+  // otherwise protrude past the cap's outer surface.
+  const groove = 0.15 + Math.max(0, Math.min(1, intensity)) * 0.6; // mm inward
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i);
     const z = pos.getZ(i);
     const ang = Math.atan2(z, x);
     const r = Math.sqrt(x * x + z * z);
-    const mod = 0.5 + 0.5 * Math.cos(ang * ridges); // 0..1 ridged
-    const nr = r + mod * bump;
+    const mod = 0.5 - 0.5 * Math.cos(ang * ridges); // 0..1, 0 at ridge crest
+    const nr = r - mod * groove;
     pos.setX(i, Math.cos(ang) * nr);
     pos.setZ(i, Math.sin(ang) * nr);
   }
@@ -513,6 +517,7 @@ function buildKnurledCylinder(
   mesh.position.z = zBottom + height / 2;
   return mesh;
 }
+
 
 function buildThreadedCap(p: PartParams, material: THREE.Material): THREE.Group {
   const group = new THREE.Group();
