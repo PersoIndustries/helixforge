@@ -185,6 +185,20 @@ export const DEFAULT_PARAMS: Record<PartType, PartParams> = {
     hollow: true,
     threadForm: "metric",
   },
+  note: {
+    outerDiameter: 0,
+    innerDiameter: 0,
+    pitch: 1,
+    wireThickness: 0,
+    flightWidth: 0,
+    length: 0,
+    turns: 0,
+    starts: 1,
+    handed: "right",
+    resolution: 8,
+    noteText: "",
+    noteColor: "#facc15",
+  },
 };
 
 /* Materials */
