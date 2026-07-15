@@ -694,7 +694,7 @@ function buildThreadedCap(p: PartParams, material: THREE.Material): THREE.Group 
 
   // --- Internal thread on cavity wall ---
   if (hasThread && threadLen > 0) {
-    group.add(buildInternalThread(p, material, threadLen, threadStart, boreR, p.flightWidth));
+    group.add(buildInternalThread(p, material, threadLen, threadStart, boreR, p.wireThickness, p.flightWidth));
   }
   
 
