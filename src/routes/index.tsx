@@ -5,7 +5,9 @@ import {
   Cog, Bolt, Nut, Package, Cylinder, Waves, Download, RotateCw,
   Grid3x3, Ruler, Scissors, Play, Sparkles, History, Layers,
   Plus, Eye, EyeOff, Copy, Trash2, Focus, GripVertical, Pencil, Check, X,
+  ChevronDown, ChevronRight,
 } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -56,17 +58,24 @@ const PART_TYPES: { type: PartType; label: string; short: string; Icon: React.Co
 
 const partMeta = (t: PartType) => PART_TYPES.find((p) => p.type === t)!;
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="space-y-3 rounded-md border border-border bg-panel/60 p-3">
-      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
+    <div className="space-y-2 rounded-md border border-border bg-panel/60 p-3">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary hover:text-primary/80"
+      >
+        {open ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
         <div className="h-1 w-1 rounded-full bg-primary shadow-[0_0_8px_var(--primary)]" />
-        {title}
-      </div>
-      <div className="space-y-3">{children}</div>
+        <span className="flex-1 text-left">{title}</span>
+      </button>
+      {open && <div className="space-y-3 pt-1">{children}</div>}
     </div>
   );
 }
+
 
 interface PartTransform { x: number; y: number; z: number; rx: number; ry: number; rz: number }
 interface PartInstance {
@@ -438,7 +447,25 @@ function HelixForge() {
                 <Button size="sm" variant="ghost" className="h-6 px-2" title="Centrar vista en todo" onClick={() => viewerRef.current?.setView("fit")}>
                   <Focus className="h-3 w-3" />
                 </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="sm" variant="ghost" className="h-6 px-2 text-primary hover:bg-primary/10" title="Añadir pieza">
+                      <Plus className="h-3.5 w-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel>Añadir pieza</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {PART_TYPES.map(({ type, label, Icon }) => (
+                      <DropdownMenuItem key={type} onClick={() => addPart(type)}>
+                        <Icon className="mr-2 h-4 w-4" />
+                        {label}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
+
             </div>
             <ScrollArea className="max-h-64">
               <div className="space-y-1 px-2 pb-2">
