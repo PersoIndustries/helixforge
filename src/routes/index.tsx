@@ -656,18 +656,83 @@ function HelixForge() {
                   )}
 
                   {t === "threaded-cap" && (
-                    <Section title="Tapa">
-                      <NumberControl label="Espesor pared" value={p!.wallThickness ?? 2} min={0.5} max={20} step={0.1} onChange={(v) => updateSelectedParams("wallThickness", v)} />
-                      <div className="flex gap-1">
-                        {[true, false].map((b) => (
-                          <button key={String(b)} onClick={() => updateSelectedParams("hasHexGrip", b)}
-                            className={`flex-1 rounded border py-1 text-xs transition-colors ${p!.hasHexGrip === b ? "border-primary bg-primary/20 text-primary" : "border-border bg-input text-muted-foreground hover:border-primary/50"}`}>
-                            {b ? "Agarre hex" : "Liso"}
-                          </button>
-                        ))}
-                      </div>
-                    </Section>
+                    <>
+                      <Section title="Tapa — Cavidad">
+                        <div className="rounded border border-primary/30 bg-primary/5 p-2 text-[10px] text-muted-foreground">
+                          Cavidad interior real (hueca). Activa <b>Sección</b> arriba o gira la tapa boca abajo para ver el hueco desde dentro.
+                        </div>
+                        <NumberControl label="Altura interior (cavidad)" value={p!.capInteriorHeight ?? (p!.length - 2)} min={0.5} max={Math.max(1, p!.length - 0.5)} step={0.1}
+                          tooltip="Profundidad real del hueco desde el borde inferior."
+                          onChange={(v) => updateSelectedParams("capInteriorHeight", v)} />
+                        <div className="flex items-center justify-between rounded border border-border bg-input/40 px-2 py-1 text-[11px]">
+                          <span className="text-muted-foreground">Espesor pared (calc.)</span>
+                          <span className="font-mono text-foreground">{((p!.outerDiameter - p!.innerDiameter) / 2).toFixed(2)} mm</span>
+                        </div>
+                        <div className="flex items-center justify-between rounded border border-border bg-input/40 px-2 py-1 text-[11px]">
+                          <span className="text-muted-foreground">Espesor techo (calc.)</span>
+                          <span className="font-mono text-foreground">{(p!.length - (p!.capInteriorHeight ?? p!.length - 2)).toFixed(2)} mm</span>
+                        </div>
+                      </Section>
+
+                      <Section title="Rosca interior">
+                        <div className="flex gap-1">
+                          {[true, false].map((b) => (
+                            <button key={String(b)} onClick={() => updateSelectedParams("hasInternalThread", b)}
+                              className={`flex-1 rounded border py-1 text-xs transition-colors ${(p!.hasInternalThread ?? true) === b ? "border-primary bg-primary/20 text-primary" : "border-border bg-input text-muted-foreground hover:border-primary/50"}`}>
+                              {b ? "Con rosca" : "Sin rosca"}
+                            </button>
+                          ))}
+                        </div>
+                        <NumberControl label="Inicio rosca (desde base)" value={p!.threadStartHeight ?? 0} min={0} max={Math.max(0, (p!.capInteriorHeight ?? p!.length) - 0.5)} step={0.1}
+                          tooltip="Distancia desde el borde inferior hasta donde empieza la rosca interior."
+                          onChange={(v) => updateSelectedParams("threadStartHeight", v)} />
+                        <NumberControl label="Profundidad de rosca" value={p!.wireThickness} min={0.2} max={5} step={0.05}
+                          tooltip="Profundidad radial de cada filete. Ajusta según el tornillo que debe alojarse."
+                          onChange={(v) => updateSelectedParams("wireThickness", v)} />
+                      </Section>
+
+                      <Section title="Agarradera exterior (grip)">
+                        <Select value={p!.gripType ?? "smooth"} onValueChange={(v) => updateSelectedParams("gripType", v as "smooth" | "hex" | "knurled" | "hex-knurled")}>
+                          <SelectTrigger className="h-8 bg-input text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="smooth">Lisa</SelectItem>
+                            <SelectItem value="hex">Hexagonal</SelectItem>
+                            <SelectItem value="knurled">Antideslizante (knurled)</SelectItem>
+                            <SelectItem value="hex-knurled">Hex + knurled</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <NumberControl label="Altura zona agarre" value={p!.gripHeight ?? p!.length} min={0} max={p!.length} step={0.1}
+                          tooltip="Altura, desde la base, ocupada por la zona de agarre. El resto es liso."
+                          onChange={(v) => updateSelectedParams("gripHeight", v)} />
+                        {(p!.gripType === "knurled" || p!.gripType === "hex-knurled") && (
+                          <NumberControl label="Intensidad knurl" value={p!.knurlIntensity ?? 0.5} min={0} max={1} step={0.05} unit=""
+                            tooltip="Profundidad y agresividad de los surcos antideslizantes."
+                            onChange={(v) => updateSelectedParams("knurlIntensity", v)} />
+                        )}
+                      </Section>
+
+                      <Section title="Agujero de herramienta (base interior)">
+                        <Select value={p!.toolHoleType ?? "none"} onValueChange={(v) => updateSelectedParams("toolHoleType", v as "none" | "hex" | "slot")}>
+                          <SelectTrigger className="h-8 bg-input text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Ninguno</SelectItem>
+                            <SelectItem value="hex">Hexagonal (Allen)</SelectItem>
+                            <SelectItem value="slot">Ranura (destornillador)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {(p!.toolHoleType ?? "none") !== "none" && (
+                          <>
+                            <NumberControl label="Tamaño" value={p!.toolHoleSize ?? 4} min={0.5} max={Math.max(1, p!.innerDiameter - 1)} step={0.1}
+                              tooltip="Entrecaras (Allen) o largo (ranura)."
+                              onChange={(v) => updateSelectedParams("toolHoleSize", v)} />
+                            <NumberControl label="Profundidad" value={p!.toolHoleDepth ?? 3} min={0} max={Math.max(0, p!.length - (p!.capInteriorHeight ?? p!.length - 2) - 0.4)} step={0.1}
+                              onChange={(v) => updateSelectedParams("toolHoleDepth", v)} />
+                          </>
+                        )}
+                      </Section>
+                    </>
                   )}
+
 
                   {t === "threaded-cylinder" && (
                     <Section title="Cilindro">
