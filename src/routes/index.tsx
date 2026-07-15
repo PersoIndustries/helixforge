@@ -5,7 +5,7 @@ import {
   Cog, Bolt, Nut, Package, Cylinder, Waves, Download, RotateCw,
   Grid3x3, Ruler, Scissors, Play, Sparkles, History, Layers,
   Plus, Eye, EyeOff, Copy, Trash2, Focus, GripVertical, Pencil, Check, X,
-  ChevronDown, ChevronRight, Upload, FileJson,
+  ChevronDown, ChevronRight, Upload, FileJson, StickyNote,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
