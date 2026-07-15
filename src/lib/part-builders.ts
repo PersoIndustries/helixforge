@@ -696,11 +696,14 @@ function buildThreadedCap(p: PartParams, material: THREE.Material): THREE.Group 
 
   const layers: CapLayer[] = [];
   const pushLayer = (z: number, radiusAt: CapRadiusFn) => layers.push({ z, radiusAt });
+  const transitionBand = (before: number, after: number) => Math.max(0, Math.min(0.25, before * 0.35, after * 0.35));
   if (gripType === "hex-knurled" && gripHeight > 0) {
     const hexH = gripHeight * 0.55;
+    const knurlH = gripHeight - hexH;
+    const blend = transitionBand(hexH, knurlH);
     pushLayer(0, hexOuter);
-    pushLayer(hexH, hexOuter);
-    pushLayer(hexH, knurlOuter);
+    pushLayer(Math.max(0, hexH - blend), hexOuter);
+    pushLayer(Math.min(gripHeight, hexH + blend), knurlOuter);
     pushLayer(gripHeight, knurlOuter);
   } else if (gripType === "hex" && gripHeight > 0) {
     pushLayer(0, hexOuter);
@@ -714,7 +717,18 @@ function buildThreadedCap(p: PartParams, material: THREE.Material): THREE.Group 
   }
   if (smoothTopH > 0) {
     const last = layers[layers.length - 1];
-    if (last.z !== gripHeight || last.radiusAt !== smoothTopProfile) pushLayer(gripHeight, smoothTopProfile);
+    if (last.radiusAt !== smoothTopProfile) {
+      const previousZ = layers.length > 1 ? layers[layers.length - 2].z : 0;
+      const blend = transitionBand(Math.max(0, gripHeight - previousZ), smoothTopH);
+      if (blend > 0 && last.z === gripHeight) {
+        last.z = Math.max(previousZ, gripHeight - blend);
+        pushLayer(Math.min(totalH, gripHeight + blend), smoothTopProfile);
+      } else if (last.z !== gripHeight) {
+        pushLayer(gripHeight, smoothTopProfile);
+      }
+    } else if (last.z !== gripHeight) {
+      pushLayer(gripHeight, smoothTopProfile);
+    }
     pushLayer(totalH, smoothTopProfile);
   } else if (layers[layers.length - 1].z !== totalH) {
     pushLayer(totalH, topProfile);
