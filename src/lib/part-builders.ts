@@ -289,9 +289,8 @@ function buildInternalThread(
   const fallbackDepth = p.wireThickness && p.wireThickness > 0 ? p.wireThickness : p.pitch * 0.54;
   const rawDepth =
     threadDepthOverride && threadDepthOverride > 0 ? threadDepthOverride : fallbackDepth;
-  // Clamp so the thread never pierces past the outer wall or the bore center.
-  const wall = Math.max(0.1, p.outerDiameter / 2 - boreRadius);
-  const threadDepth = Math.max(0.05, Math.min(rawDepth, wall * 0.95, boreRadius * 0.9));
+  // Clamp so the thread crest doesn't reach the axis.
+  const threadDepth = Math.max(0.05, Math.min(rawDepth, boreRadius * 0.85));
 
   // Axial flight width is independent of inner/outer diameter — driven only
   // by the metric parameters (pitch + explicit flight width).
