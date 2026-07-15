@@ -27,6 +27,7 @@ export interface ViewerHandle {
   setAxesVisible: (b: boolean) => void;
   setClipEnabled: (b: boolean) => void;
   setClipPosition: (v: number) => void;
+  setDiagnosticOverlay: (group: THREE.Group | null) => void;
 }
 
 interface Props {
@@ -346,6 +347,31 @@ export const Viewer3D = forwardRef<ViewerHandle, Props>(function Viewer3D({ onPi
       reapplyAllMaterials();
     },
     setClipPosition: (v) => { stateRef.current!.clipPlane.constant = v; },
+    setDiagnosticOverlay: (group) => {
+      const s = stateRef.current!;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const anyS = s as any;
+      const prev = anyS.diagOverlay as THREE.Group | undefined;
+      if (prev) {
+        s.scene.remove(prev);
+        prev.traverse((c) => {
+          const m = c as THREE.Mesh;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const geom = (m as any).geometry as THREE.BufferGeometry | undefined;
+          geom?.dispose();
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const mat = (m as any).material as THREE.Material | THREE.Material[] | undefined;
+          if (Array.isArray(mat)) mat.forEach((x) => x.dispose());
+          else mat?.dispose();
+        });
+      }
+      if (group) {
+        s.scene.add(group);
+        anyS.diagOverlay = group;
+      } else {
+        anyS.diagOverlay = undefined;
+      }
+    },
   }));
 
   return (
