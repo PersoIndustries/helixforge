@@ -5,7 +5,7 @@ import {
   Cog, Bolt, Nut, Package, Cylinder, Waves, Download, RotateCw,
   Grid3x3, Ruler, Scissors, Play, Sparkles, History, Layers,
   Plus, Eye, EyeOff, Copy, Trash2, Focus, GripVertical, Pencil, Check, X,
-  ChevronDown, ChevronRight,
+  ChevronDown, ChevronRight, Upload, FileJson,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -321,6 +321,62 @@ function HelixForge() {
     toast.success(`Exportado ${filename}`);
   };
 
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const doExportJSON = (scope: "all" | "selected") => {
+    const list = scope === "selected" && selected ? [selected] : parts;
+    if (list.length === 0) { toast.error("No hay piezas para exportar"); return; }
+    const payload = {
+      format: "helixforge-project",
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      parts: list.map((p) => ({
+        id: p.id, type: p.type, name: p.name,
+        params: p.params, visible: p.visible, transform: p.transform,
+      })),
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const filename = scope === "selected" && selected
+      ? `${selected.name.replace(/\s+/g, "_").toLowerCase()}.json`
+      : `helixforge_proyecto_${list.length}p.json`;
+    downloadBlob(blob, filename);
+    pushHistory(filename);
+    toast.success(`Exportado ${filename}`, { description: `${(blob.size / 1024).toFixed(1)} KB · ${list.length} pieza${list.length !== 1 ? "s" : ""}` });
+  };
+
+  const openImportDialog = () => fileInputRef.current?.click();
+
+  const handleImportFile = async (file: File, mode: "replace" | "append") => {
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      const rawParts = Array.isArray(data) ? data : data?.parts;
+      if (!Array.isArray(rawParts)) throw new Error("Formato JSON inválido: falta 'parts'");
+      const valid: PartInstance[] = [];
+      for (const rp of rawParts) {
+        if (!rp || typeof rp !== "object") continue;
+        const type = rp.type as PartType;
+        if (!type || !(type in DEFAULT_PARAMS)) continue;
+        valid.push({
+          id: crypto.randomUUID(),
+          type,
+          name: typeof rp.name === "string" ? rp.name : `Pieza ${valid.length + 1}`,
+          params: { ...DEFAULT_PARAMS[type], ...(rp.params ?? {}) },
+          visible: rp.visible !== false,
+          transform: { ...DEFAULT_TRANSFORM(), ...(rp.transform ?? {}) },
+        });
+      }
+      if (valid.length === 0) throw new Error("El archivo no contiene piezas válidas");
+      setParts((ps) => mode === "replace" ? valid : [...ps, ...valid]);
+      setSelectedId(valid[0].id);
+      toast.success(`Importadas ${valid.length} pieza${valid.length !== 1 ? "s" : ""}`, {
+        description: mode === "replace" ? "Proyecto reemplazado" : "Añadidas al proyecto",
+      });
+    } catch (err) {
+      toast.error("Error al importar", { description: err instanceof Error ? err.message : String(err) });
+    }
+  };
+
   const loadPreset = (id: string) => {
     const preset = PRESETS.find((p) => p.id === id);
     if (!preset) return;
@@ -404,12 +460,50 @@ function HelixForge() {
           </DropdownMenu>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2" title="Importar proyecto JSON">
+                <Upload className="h-3.5 w-3.5" />
+                Importar
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Importar proyecto (.json)</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => { if (fileInputRef.current) { fileInputRef.current.dataset.mode = "append"; openImportDialog(); } }}>
+                Añadir al proyecto actual
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { if (fileInputRef.current) { fileInputRef.current.dataset.mode = "replace"; openImportDialog(); } }}>
+                Reemplazar proyecto actual
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              const mode = (e.target.dataset.mode as "replace" | "append") || "append";
+              if (file) handleImportFile(file, mode);
+              e.target.value = "";
+            }}
+          />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <Button size="sm" className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
                 <Download className="h-3.5 w-3.5" />
                 Exportar
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuLabel className="flex items-center gap-1.5">
+                <FileJson className="h-3.5 w-3.5" /> Proyecto (JSON)
+              </DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => doExportJSON("all")}>Proyecto completo (.json)</DropdownMenuItem>
+              {selected && (
+                <DropdownMenuItem onClick={() => doExportJSON("selected")}>Solo seleccionada — {selected.name} (.json)</DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
               <DropdownMenuLabel>Ensamblaje completo</DropdownMenuLabel>
               <DropdownMenuItem onClick={() => doExportAssembly("stl")}>STL binario (todo junto)</DropdownMenuItem>
               <DropdownMenuItem onClick={() => doExportAssembly("obj")}>OBJ (todo junto)</DropdownMenuItem>
@@ -429,6 +523,7 @@ function HelixForge() {
           </DropdownMenu>
         </div>
       </header>
+
 
       {/* Main content */}
       <div className="flex min-h-0 flex-1">
