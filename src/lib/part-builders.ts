@@ -375,6 +375,15 @@ function buildAuger(p: PartParams, material: THREE.Material): THREE.Group {
   const flightW = p.flightWidth;
   const flightT = p.flightThickness ?? 2;
   const profile = flightProfile(flightW, flightT);
+  const filletType = p.filletType ?? "none";
+  const filletR = Math.max(0, p.filletRadius ?? 0);
+  const filletH = Math.max(0, p.filletHeight ?? filletR);
+  // Clamp radius to a reasonable share of the flight (max 50% of width or 4× thickness)
+  const maxR = Math.min(flightW * 0.9, flightT * 4);
+  const rw = Math.min(filletR, maxR);
+  const rh = Math.min(filletH, flightT * 4);
+  const filletSeg = Math.max(6, Math.min(20, Math.floor(p.resolution / 4)));
+
   for (let s = 0; s < p.starts; s++) {
     const geom = sweepProfileAlongHelix({
       profile,
@@ -387,6 +396,30 @@ function buildAuger(p: PartParams, material: THREE.Material): THREE.Group {
     const mesh = new THREE.Mesh(geom, material);
     mesh.rotation.z = (s / p.starts) * Math.PI * 2;
     group.add(mesh);
+
+    if (filletType !== "none" && rw > 0 && rh > 0) {
+      for (const side of ["top", "bottom"] as const) {
+        const fProfile = filletProfile({
+          radiusRadial: rw,
+          radiusAxial: rh,
+          thickness: flightT,
+          side,
+          kind: filletType,
+          segments: filletSeg,
+        });
+        const fGeom = sweepProfileAlongHelix({
+          profile: fProfile,
+          radius: shaftR,
+          pitch: p.pitch * p.starts,
+          turns: turns / p.starts,
+          segmentsPerTurn: p.resolution,
+          handed: handedSign(p.handed),
+        });
+        const fMesh = new THREE.Mesh(fGeom, material);
+        fMesh.rotation.z = (s / p.starts) * Math.PI * 2;
+        group.add(fMesh);
+      }
+    }
   }
   return group;
 }
