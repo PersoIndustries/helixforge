@@ -15,7 +15,8 @@ export type PartType =
   | "nut"
   | "auger"
   | "threaded-cap"
-  | "threaded-cylinder";
+  | "threaded-cylinder"
+  | "note";
 
 export interface PartParams {
   // Common
