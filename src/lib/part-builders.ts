@@ -520,10 +520,19 @@ function buildThreadedCap(p: PartParams, material: THREE.Material): THREE.Group 
   const outerR = p.outerDiameter / 2;
   const boreR = Math.max(0.5, Math.min(p.innerDiameter / 2, outerR - 0.4));
   const wall = Math.max(0.3, outerR - boreR);
-  const interiorH = Math.max(
-    0.5,
-    Math.min(p.capInteriorHeight ?? totalH - (p.wallThickness ?? wall), totalH - 0.5)
+  const requestedInterior = Math.min(
+    p.capInteriorHeight ?? totalH - (p.wallThickness ?? wall),
+    totalH - 0.5
   );
+  const toolHoleType = p.toolHoleType ?? "none";
+  const toolHoleLocation = p.toolHoleLocation ?? "inside";
+  const toolHoleSize = Math.max(0.5, p.toolHoleSize ?? 4);
+  const requestedDepth = Math.max(0, Math.min(p.toolHoleDepth ?? 3, totalH - 0.5));
+  // Ensure the top wall is thick enough to host the tool hole; reduce cavity if needed.
+  const minTopForHole =
+    toolHoleType !== "none" && requestedDepth > 0 ? requestedDepth + 0.4 : 0;
+  const maxInteriorForHole = Math.max(0.5, totalH - minTopForHole);
+  const interiorH = Math.max(0.5, Math.min(requestedInterior, maxInteriorForHole));
   const topThickness = totalH - interiorH;
   const threadStart = Math.max(0, Math.min(p.threadStartHeight ?? 0, interiorH - 0.5));
   const threadLen = Math.max(0, interiorH - threadStart);
@@ -531,14 +540,9 @@ function buildThreadedCap(p: PartParams, material: THREE.Material): THREE.Group 
   const gripType = p.gripType ?? (p.hasHexGrip ? "hex" : "smooth");
   const gripHeight = Math.min(Math.max(0, p.gripHeight ?? totalH), totalH);
   const knurl = p.knurlIntensity ?? 0.5;
-  const toolHoleType = p.toolHoleType ?? "none";
-  const toolHoleLocation = p.toolHoleLocation ?? "inside";
-  const toolHoleSize = Math.max(0.5, p.toolHoleSize ?? 4);
-  const maxToolDepth =
-    toolHoleLocation === "outside-top"
-      ? Math.max(0, topThickness - 0.4)
-      : Math.max(0, topThickness - 0.4);
-  const toolHoleDepth = Math.max(0, Math.min(p.toolHoleDepth ?? 3, maxToolDepth));
+  const maxToolDepth = Math.max(0, topThickness - 0.4);
+  const toolHoleDepth = Math.max(0, Math.min(requestedDepth, maxToolDepth));
+
 
   // Use DoubleSide clone so cavity walls render correctly from inside/outside.
   const base = material as THREE.MeshStandardMaterial;
