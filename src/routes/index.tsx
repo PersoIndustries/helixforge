@@ -1157,8 +1157,88 @@ function HelixForge() {
             </div>
           </div>
 
-          <div className="min-h-0 flex-1">
+          <div className="relative min-h-0 flex-1">
             <Viewer3D ref={viewerRef} onPick={(id) => setSelectedId(id)} />
+            {diagOpen && (
+              <div className="pointer-events-auto absolute right-3 top-3 w-[300px] rounded-md border border-destructive/40 bg-background/95 p-3 text-xs shadow-lg backdrop-blur">
+                <div className="mb-2 flex items-center gap-2">
+                  <Stethoscope className="h-4 w-4 text-destructive" />
+                  <span className="font-semibold uppercase tracking-wider text-destructive">Diagnóstico de malla</span>
+                  <Button variant="ghost" size="sm" className="ml-auto h-6 w-6 p-0" onClick={() => setDiagOpen(false)}>
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+                <div className="mb-2 flex gap-1">
+                  <Button size="sm" variant={diagScope === "selected" ? "secondary" : "ghost"} className="h-6 flex-1 px-2 text-[10px]" onClick={() => setDiagScope("selected")} disabled={!selectedId}>
+                    Pieza sel.
+                  </Button>
+                  <Button size="sm" variant={diagScope === "assembly" ? "secondary" : "ghost"} className="h-6 flex-1 px-2 text-[10px]" onClick={() => setDiagScope("assembly")}>
+                    Ensamblaje
+                  </Button>
+                </div>
+                <div className="space-y-1">
+                  {[
+                    { key: "showOpenEdges", label: "Bordes abiertos (rojo)" },
+                    { key: "showNonManifold", label: "No-manifold (magenta)" },
+                    { key: "showThickness", label: "Espesor de pared" },
+                    { key: "showNormals", label: "Normales de caras" },
+                  ].map((o) => (
+                    <label key={o.key} className="flex cursor-pointer items-center gap-2 rounded px-1 py-0.5 hover:bg-muted/50">
+                      <input
+                        type="checkbox"
+                        checked={diagOpts[o.key as keyof DiagnosticOptions] as boolean}
+                        onChange={(e) => setDiagOpts((d) => ({ ...d, [o.key]: e.target.checked }))}
+                        className="h-3 w-3 accent-destructive"
+                      />
+                      <span>{o.label}</span>
+                    </label>
+                  ))}
+                </div>
+                {diagOpts.showThickness && (
+                  <div className="mt-2 space-y-1 rounded border border-border/50 p-2">
+                    <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                      <span>Mín. seguro (mm)</span>
+                      <span className="font-mono text-foreground">{diagOpts.wallThicknessMin.toFixed(2)}</span>
+                    </div>
+                    <Slider value={[diagOpts.wallThicknessMin]} min={0.2} max={5} step={0.1}
+                      onValueChange={(v) => setDiagOpts((d) => ({ ...d, wallThicknessMin: v[0] }))} />
+                    <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                      <span>Objetivo verde (mm)</span>
+                      <span className="font-mono text-foreground">{diagOpts.wallThicknessSafe.toFixed(2)}</span>
+                    </div>
+                    <Slider value={[diagOpts.wallThicknessSafe]} min={0.5} max={8} step={0.1}
+                      onValueChange={(v) => setDiagOpts((d) => ({ ...d, wallThicknessSafe: v[0] }))} />
+                  </div>
+                )}
+                {diagReport && (
+                  <div className="mt-2 space-y-1 rounded border border-border/50 p-2">
+                    <div className="grid grid-cols-2 gap-1 font-mono text-[10px] text-muted-foreground">
+                      <div>Meshes: <span className="text-foreground">{diagReport.meshes}</span></div>
+                      <div>Tris: <span className="text-foreground">{diagReport.triangles}</span></div>
+                      <div>Abiertos: <span className={diagReport.openEdges > 0 ? "text-destructive" : "text-foreground"}>{diagReport.openEdges}</span></div>
+                      <div>No-manif.: <span className={diagReport.nonManifoldEdges > 0 ? "text-destructive" : "text-foreground"}>{diagReport.nonManifoldEdges}</span></div>
+                      {diagOpts.showThickness && (
+                        <>
+                          <div>Finas: <span className={diagReport.thinTriangles > 0 ? "text-destructive" : "text-foreground"}>{diagReport.thinTriangles}</span></div>
+                          <div>Mín: <span className="text-foreground">{diagReport.minWallThickness.toFixed(2)}mm</span></div>
+                        </>
+                      )}
+                    </div>
+                    <div className="mt-1 space-y-1">
+                      {diagReport.warnings.map((w, i) => (
+                        <div key={i} className="flex items-start gap-1 rounded bg-muted/40 p-1 text-[10px] leading-tight">
+                          <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0 text-yellow-500" />
+                          <span>{w}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div className="mt-2 text-[9px] text-muted-foreground">
+                  Consejos: aumenta el espesor de pared, reduce la intensidad del grip o disminuye la profundidad del agujero de herramienta si aparecen bordes rojos cerca de la tapa.
+                </div>
+              </div>
+            )}
           </div>
         </main>
 
