@@ -276,10 +276,15 @@ function buildInternalThread(
   material: THREE.Material,
   length: number,
   startZ: number,
-  boreRadius: number
+  boreRadius: number,
+  threadWidthOverride?: number
 ): THREE.Group {
   const group = new THREE.Group();
   const threadDepth = (p.outerDiameter - p.innerDiameter) / 2;
+  const threadWidth = Math.min(
+    threadWidthOverride && threadWidthOverride > 0 ? threadWidthOverride : p.pitch * 0.9,
+    p.pitch * 0.95
+  );
   // For internal thread, we sweep pointing inward
   const placementRadius = boreRadius - threadDepth / 2;
   const profile =
