@@ -209,10 +209,10 @@ export function filletProfile(opts: {
     }
   } else {
     // Concave quarter-ellipse centered at (rw, apex): classic fillet
+    const rhS = sign * rh;
     for (let i = 1; i < seg; i++) {
-      const th = (i / seg) * (Math.PI / 2);
-      // param: from (rw, base) at th=0 to (0, apex) at th=π/2
-      pts.push({ x: rw * Math.cos(th), y: apex - sign * rh * Math.cos(th) });
+      const a = -Math.PI / 2 - (i / seg) * (Math.PI / 2);
+      pts.push({ x: rw + rw * Math.cos(a), y: apex + rhS * Math.sin(a) });
     }
   }
 
