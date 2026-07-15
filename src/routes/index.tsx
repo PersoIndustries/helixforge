@@ -68,7 +68,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-interface PartTransform { x: number; y: number; z: number; rz: number }
+interface PartTransform { x: number; y: number; z: number; rx: number; ry: number; rz: number }
 interface PartInstance {
   id: string;
   type: PartType;
@@ -80,7 +80,8 @@ interface PartInstance {
 
 interface HistoryEntry { id: string; name: string; at: number }
 
-const DEFAULT_TRANSFORM = (): PartTransform => ({ x: 0, y: 0, z: 0, rz: 0 });
+const DEFAULT_TRANSFORM = (): PartTransform => ({ x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 });
+
 
 function HelixForge() {
   const [parts, setParts] = useState<PartInstance[]>(() => [
