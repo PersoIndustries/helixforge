@@ -43,6 +43,15 @@ export interface PartParams {
   wallThickness?: number;
   hasHexGrip?: boolean;
   threadForm?: "metric" | "acme";
+  capInteriorHeight?: number; // depth of internal cavity from bottom
+  threadStartHeight?: number; // z where internal thread begins (from bottom)
+  hasInternalThread?: boolean;
+  gripType?: "smooth" | "hex" | "knurled" | "hex-knurled";
+  gripHeight?: number;
+  knurlIntensity?: number; // 0..1
+  toolHoleType?: "none" | "hex" | "slot";
+  toolHoleSize?: number; // across-flats for hex, length for slot
+  toolHoleDepth?: number;
   // Auger
   shaftDiameter?: number;
   flightThickness?: number;
@@ -52,6 +61,7 @@ export interface PartParams {
   // Cylinder / hollow
   hollow?: boolean;
 }
+
 
 export const DEFAULT_PARAMS: Record<PartType, PartParams> = {
   "compression-spring": {
