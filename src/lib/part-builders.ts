@@ -773,6 +773,11 @@ export function buildPart(type: PartType, params: PartParams, material: THREE.Ma
       return buildThreadedCap(params, material);
     case "threaded-cylinder":
       return buildThreadedCylinder(params, material);
+    case "note": {
+      const g = new THREE.Group();
+      g.name = "Note";
+      return g;
+    }
   }
 }
 
