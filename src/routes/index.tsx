@@ -58,17 +58,24 @@ const PART_TYPES: { type: PartType; label: string; short: string; Icon: React.Co
 
 const partMeta = (t: PartType) => PART_TYPES.find((p) => p.type === t)!;
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="space-y-3 rounded-md border border-border bg-panel/60 p-3">
-      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
+    <div className="space-y-2 rounded-md border border-border bg-panel/60 p-3">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary hover:text-primary/80"
+      >
+        {open ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
         <div className="h-1 w-1 rounded-full bg-primary shadow-[0_0_8px_var(--primary)]" />
-        {title}
-      </div>
-      <div className="space-y-3">{children}</div>
+        <span className="flex-1 text-left">{title}</span>
+      </button>
+      {open && <div className="space-y-3 pt-1">{children}</div>}
     </div>
   );
 }
+
 
 interface PartTransform { x: number; y: number; z: number; rx: number; ry: number; rz: number }
 interface PartInstance {
