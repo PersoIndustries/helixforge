@@ -444,45 +444,180 @@ function buildAuger(p: PartParams, material: THREE.Material): THREE.Group {
   return group;
 }
 
+function buildKnurledCylinder(
+  radius: number,
+  height: number,
+  intensity: number,
+  material: THREE.Material,
+  zBottom: number,
+  ridges = 60
+): THREE.Mesh {
+  const segments = Math.max(96, ridges * 2);
+  const geom = new THREE.CylinderGeometry(radius, radius, height, segments, 1, true);
+  const pos = geom.attributes.position as THREE.BufferAttribute;
+  const bump = 0.15 + Math.max(0, Math.min(1, intensity)) * 0.7; // mm
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const z = pos.getZ(i);
+    const ang = Math.atan2(z, x);
+    const r = Math.sqrt(x * x + z * z);
+    const mod = 0.5 + 0.5 * Math.cos(ang * ridges); // 0..1 ridged
+    const nr = r + mod * bump;
+    pos.setX(i, Math.cos(ang) * nr);
+    pos.setZ(i, Math.sin(ang) * nr);
+  }
+  geom.computeVertexNormals();
+  const mesh = new THREE.Mesh(geom, material);
+  mesh.rotation.x = Math.PI / 2;
+  mesh.position.z = zBottom + height / 2;
+  return mesh;
+}
+
 function buildThreadedCap(p: PartParams, material: THREE.Material): THREE.Group {
   const group = new THREE.Group();
-  const height = p.length;
-  const wall = p.wallThickness ?? 2;
-  const outerR = p.outerDiameter / 2 + wall;
-  const shape = p.hasHexGrip ? 6 : 40;
-  const body = new THREE.Mesh(
-    new THREE.CylinderGeometry(outerR, outerR, height, shape),
-    material
+  const totalH = p.length;
+  const outerR = p.outerDiameter / 2;
+  const boreR = Math.max(0.5, Math.min(p.innerDiameter / 2, outerR - 0.4));
+  const wall = Math.max(0.3, outerR - boreR);
+  const interiorH = Math.max(
+    0.5,
+    Math.min(p.capInteriorHeight ?? totalH - (p.wallThickness ?? wall), totalH - 0.5)
   );
-  body.rotation.x = Math.PI / 2;
-  body.position.z = height / 2;
-  group.add(body);
-  // Bore (visual)
-  const boreR = p.outerDiameter / 2;
+  const topThickness = totalH - interiorH;
+  const threadStart = Math.max(0, Math.min(p.threadStartHeight ?? 0, interiorH - 0.5));
+  const threadLen = Math.max(0, interiorH - threadStart);
+  const hasThread = p.hasInternalThread ?? true;
+  const gripType = p.gripType ?? (p.hasHexGrip ? "hex" : "smooth");
+  const gripHeight = Math.min(Math.max(0, p.gripHeight ?? totalH), totalH);
+  const knurl = p.knurlIntensity ?? 0.5;
+  const toolHoleType = p.toolHoleType ?? "none";
+  const toolHoleSize = Math.max(0.5, p.toolHoleSize ?? 4);
+  const toolHoleDepth = Math.max(0, Math.min(p.toolHoleDepth ?? 3, Math.max(0, topThickness - 0.4)));
+
+  // Use DoubleSide clone so cavity walls render correctly from inside/outside.
+  const base = material as THREE.MeshStandardMaterial;
+  const shellMat = base.clone();
+  shellMat.side = THREE.DoubleSide;
+
+  const smoothTopH = Math.max(0, totalH - gripHeight);
+  const hasHex = gripType === "hex" || gripType === "hex-knurled";
+  const hasKnurl = gripType === "knurled" || gripType === "hex-knurled";
+  const topShape = hasHex ? 6 : 64;
+
+  // --- Grip region (bottom) ---
+  if (gripType === "hex-knurled" && gripHeight > 0) {
+    const hexH = gripHeight * 0.55;
+    const knurlH = gripHeight - hexH;
+    const hex = new THREE.Mesh(
+      new THREE.CylinderGeometry(outerR, outerR, hexH, 6, 1, true),
+      shellMat
+    );
+    hex.rotation.x = Math.PI / 2;
+    hex.position.z = hexH / 2;
+    group.add(hex);
+    if (knurlH > 0) group.add(buildKnurledCylinder(outerR, knurlH, knurl, shellMat, hexH));
+  } else if (gripType === "hex" && gripHeight > 0) {
+    const hex = new THREE.Mesh(
+      new THREE.CylinderGeometry(outerR, outerR, gripHeight, 6, 1, true),
+      shellMat
+    );
+    hex.rotation.x = Math.PI / 2;
+    hex.position.z = gripHeight / 2;
+    group.add(hex);
+  } else if (gripType === "knurled" && gripHeight > 0) {
+    group.add(buildKnurledCylinder(outerR, gripHeight, knurl, shellMat, 0));
+  } else if (gripHeight > 0) {
+    const cy = new THREE.Mesh(
+      new THREE.CylinderGeometry(outerR, outerR, gripHeight, 64, 1, true),
+      shellMat
+    );
+    cy.rotation.x = Math.PI / 2;
+    cy.position.z = gripHeight / 2;
+    group.add(cy);
+  }
+
+  // --- Smooth top region above grip ---
+  if (smoothTopH > 0) {
+    const cy = new THREE.Mesh(
+      new THREE.CylinderGeometry(outerR, outerR, smoothTopH, topShape, 1, true),
+      shellMat
+    );
+    cy.rotation.x = Math.PI / 2;
+    cy.position.z = gripHeight + smoothTopH / 2;
+    group.add(cy);
+  }
+
+  // --- Solid top disc (closed end) ---
+  const top = new THREE.Mesh(new THREE.CircleGeometry(outerR, topShape), shellMat);
+  top.position.z = totalH;
+  group.add(top);
+
+  // --- Bottom rim annulus (visible opening) ---
+  const rim = new THREE.Mesh(
+    new THREE.RingGeometry(boreR, outerR, Math.max(topShape, 48)),
+    shellMat
+  );
+  rim.rotation.x = Math.PI; // face -Z
+  rim.position.z = 0;
+  group.add(rim);
+
+  // --- Inner cavity wall (open-ended, DoubleSide) ---
   const bore = new THREE.Mesh(
-    new THREE.CylinderGeometry(boreR, boreR, height, 48, 1, true),
-    new THREE.MeshStandardMaterial({
-      color: 0x0b0f14,
-      side: THREE.DoubleSide,
-      metalness: 0.2,
-      roughness: 0.9,
-    })
+    new THREE.CylinderGeometry(boreR, boreR, interiorH, 64, 1, true),
+    shellMat
   );
   bore.rotation.x = Math.PI / 2;
-  bore.position.z = height / 2 + wall / 2;
+  bore.position.z = interiorH / 2;
   group.add(bore);
-  // Top cap disc
-  const disc = new THREE.Mesh(
-    new THREE.CylinderGeometry(outerR, outerR, wall, shape),
-    material
+
+  // --- Cavity ceiling annulus (inside top of cavity, facing down) ---
+  const holeR = toolHoleType === "hex" ? Math.min(toolHoleSize / 2, boreR - 0.5) : 0;
+  const ceilingInner = Math.max(0.01, holeR);
+  const ceiling = new THREE.Mesh(
+    new THREE.RingGeometry(ceilingInner, boreR, 64),
+    shellMat
   );
-  disc.rotation.x = Math.PI / 2;
-  disc.position.z = height - wall / 2;
-  group.add(disc);
-  // Internal thread
-  group.add(buildInternalThread(p, material, height - wall, 0, boreR));
+  ceiling.rotation.x = Math.PI; // face -Z (into cavity)
+  ceiling.position.z = interiorH;
+  group.add(ceiling);
+
+  // --- Tool hole (blind indent from inside base of cavity toward top) ---
+  if (toolHoleType === "hex" && holeR > 0 && toolHoleDepth > 0) {
+    const hWall = new THREE.Mesh(
+      new THREE.CylinderGeometry(holeR, holeR, toolHoleDepth, 6, 1, true),
+      shellMat
+    );
+    hWall.rotation.x = Math.PI / 2;
+    hWall.position.z = interiorH + toolHoleDepth / 2;
+    group.add(hWall);
+    const hCap = new THREE.Mesh(new THREE.CircleGeometry(holeR, 6), shellMat);
+    hCap.rotation.x = Math.PI; // face down (into cavity)
+    hCap.position.z = interiorH + toolHoleDepth;
+    group.add(hCap);
+  } else if (toolHoleType === "slot" && toolHoleDepth > 0) {
+    // Visual slot: thin box pocket represented as a dark rectangular indent.
+    const slotL = Math.min(toolHoleSize, boreR * 1.6);
+    const slotW = Math.max(0.5, toolHoleSize * 0.22);
+    const slot = new THREE.Mesh(
+      new THREE.BoxGeometry(slotL, slotW, toolHoleDepth),
+      new THREE.MeshStandardMaterial({
+        color: 0x0b0f14,
+        metalness: 0.2,
+        roughness: 0.95,
+      })
+    );
+    slot.position.z = interiorH + toolHoleDepth / 2;
+    group.add(slot);
+  }
+
+  // --- Internal thread on cavity wall ---
+  if (hasThread && threadLen > 0) {
+    group.add(buildInternalThread(p, material, threadLen, threadStart, boreR));
+  }
+
   return group;
 }
+
 
 function buildThreadedCylinder(p: PartParams, material: THREE.Material): THREE.Group {
   const group = new THREE.Group();
