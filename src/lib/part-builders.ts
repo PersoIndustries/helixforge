@@ -680,7 +680,7 @@ function buildThreadedCap(p: PartParams, material: THREE.Material): THREE.Group 
   if (hasThread && threadLen > 0) {
     group.add(buildInternalThread(p, material, threadLen, threadStart, boreR, p.flightWidth));
   }
-  void hasKnurl;
+  
 
   return group;
 }
