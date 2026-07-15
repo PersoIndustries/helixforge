@@ -46,6 +46,9 @@ export interface PartParams {
   // Auger
   shaftDiameter?: number;
   flightThickness?: number;
+  filletType?: "none" | "circular" | "triangular" | "rounded";
+  filletRadius?: number; // radial run along flight face (mm)
+  filletHeight?: number; // axial climb up shaft (mm); defaults to filletRadius
   // Cylinder / hollow
   hollow?: boolean;
 }
