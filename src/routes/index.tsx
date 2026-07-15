@@ -460,12 +460,50 @@ function HelixForge() {
           </DropdownMenu>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2" title="Importar proyecto JSON">
+                <Upload className="h-3.5 w-3.5" />
+                Importar
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Importar proyecto (.json)</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => { if (fileInputRef.current) { fileInputRef.current.dataset.mode = "append"; openImportDialog(); } }}>
+                Añadir al proyecto actual
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { if (fileInputRef.current) { fileInputRef.current.dataset.mode = "replace"; openImportDialog(); } }}>
+                Reemplazar proyecto actual
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              const mode = (e.target.dataset.mode as "replace" | "append") || "append";
+              if (file) handleImportFile(file, mode);
+              e.target.value = "";
+            }}
+          />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <Button size="sm" className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
                 <Download className="h-3.5 w-3.5" />
                 Exportar
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuLabel className="flex items-center gap-1.5">
+                <FileJson className="h-3.5 w-3.5" /> Proyecto (JSON)
+              </DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => doExportJSON("all")}>Proyecto completo (.json)</DropdownMenuItem>
+              {selected && (
+                <DropdownMenuItem onClick={() => doExportJSON("selected")}>Solo seleccionada — {selected.name} (.json)</DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
               <DropdownMenuLabel>Ensamblaje completo</DropdownMenuLabel>
               <DropdownMenuItem onClick={() => doExportAssembly("stl")}>STL binario (todo junto)</DropdownMenuItem>
               <DropdownMenuItem onClick={() => doExportAssembly("obj")}>OBJ (todo junto)</DropdownMenuItem>
@@ -485,6 +523,7 @@ function HelixForge() {
           </DropdownMenu>
         </div>
       </header>
+
 
       {/* Main content */}
       <div className="flex min-h-0 flex-1">
