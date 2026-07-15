@@ -316,7 +316,7 @@ function HelixForge() {
     if (!selected) return;
     const g = viewerRef.current?.getPartGroup(selected.id);
     if (!g) return;
-    const filename = buildFileName(selected, fmt);
+    const filename = `${selected.name.replace(/\s+/g, "_").toLowerCase()}_${buildFileName(selected, fmt)}`;
     const blob = fmt === "stl" ? exportSTLBinary(g) : exportOBJ(g);
     downloadBlob(blob, filename);
     pushHistory(filename);
