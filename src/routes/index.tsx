@@ -68,7 +68,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-interface PartTransform { x: number; y: number; z: number; rz: number }
+interface PartTransform { x: number; y: number; z: number; rx: number; ry: number; rz: number }
 interface PartInstance {
   id: string;
   type: PartType;
@@ -80,7 +80,8 @@ interface PartInstance {
 
 interface HistoryEntry { id: string; name: string; at: number }
 
-const DEFAULT_TRANSFORM = (): PartTransform => ({ x: 0, y: 0, z: 0, rz: 0 });
+const DEFAULT_TRANSFORM = (): PartTransform => ({ x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 });
+
 
 function HelixForge() {
   const [parts, setParts] = useState<PartInstance[]>(() => [
@@ -541,9 +542,16 @@ function HelixForge() {
                       onChange={(v) => updateSelectedTransform("x", v)} />
                     <NumberControl label="Offset Y" value={selected.transform.y} min={-200} max={200} step={0.5}
                       onChange={(v) => updateSelectedTransform("y", v)} />
-                    <NumberControl label="Rotación Z" value={selected.transform.rz * 180 / Math.PI} min={-180} max={180} step={1} unit="°"
+                    <NumberControl label="Inclinación X (pitch)" value={selected.transform.rx * 180 / Math.PI} min={-180} max={180} step={1} unit="°"
+                      tooltip="Rotación vertical alrededor del eje X. Útil para tumbar o inclinar la pieza."
+                      onChange={(v) => updateSelectedTransform("rx", v * Math.PI / 180)} />
+                    <NumberControl label="Inclinación Y (roll)" value={selected.transform.ry * 180 / Math.PI} min={-180} max={180} step={1} unit="°"
+                      tooltip="Rotación vertical alrededor del eje Y."
+                      onChange={(v) => updateSelectedTransform("ry", v * Math.PI / 180)} />
+                    <NumberControl label="Rotación Z (yaw)" value={selected.transform.rz * 180 / Math.PI} min={-180} max={180} step={1} unit="°"
                       tooltip="Rotación sobre el eje axial de la pieza."
                       onChange={(v) => updateSelectedTransform("rz", v * Math.PI / 180)} />
+
                     <Button size="sm" variant="outline" className="w-full gap-1 text-xs" onClick={() => {
                       setParts((ps) => ps.map((x) => x.id === selected.id ? { ...x, transform: DEFAULT_TRANSFORM() } : x));
                     }}>
