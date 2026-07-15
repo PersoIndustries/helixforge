@@ -447,7 +447,25 @@ function HelixForge() {
                 <Button size="sm" variant="ghost" className="h-6 px-2" title="Centrar vista en todo" onClick={() => viewerRef.current?.setView("fit")}>
                   <Focus className="h-3 w-3" />
                 </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="sm" variant="ghost" className="h-6 px-2 text-primary hover:bg-primary/10" title="Añadir pieza">
+                      <Plus className="h-3.5 w-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel>Añadir pieza</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {PART_TYPES.map(({ type, label, Icon }) => (
+                      <DropdownMenuItem key={type} onClick={() => addPart(type)}>
+                        <Icon className="mr-2 h-4 w-4" />
+                        {label}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
+
             </div>
             <ScrollArea className="max-h-64">
               <div className="space-y-1 px-2 pb-2">
