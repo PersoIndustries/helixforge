@@ -907,8 +907,10 @@ function HelixForge() {
                             <NumberControl label="Tamaño" value={p!.toolHoleSize ?? 4} min={0.5} max={Math.max(1, ((p!.toolHoleLocation ?? "inside") === "outside-top" ? p!.outerDiameter : p!.innerDiameter) - 1)} step={0.1}
                               tooltip="Entrecaras (Allen) o largo (ranura)."
                               onChange={(v) => updateSelectedParams("toolHoleSize", v)} />
-                            <NumberControl label="Profundidad" value={p!.toolHoleDepth ?? 3} min={0} max={Math.max(0, p!.length - (p!.capInteriorHeight ?? p!.length - 2) - 0.4)} step={0.1}
+                            <NumberControl label="Profundidad" value={p!.toolHoleDepth ?? 3} min={0} max={Math.max(0.5, p!.length - 0.5)} step={0.1}
+                              tooltip="Si supera el grosor del techo, la cavidad se reduce automáticamente para dar espacio al agujero."
                               onChange={(v) => updateSelectedParams("toolHoleDepth", v)} />
+
                           </>
                         )}
                       </Section>
