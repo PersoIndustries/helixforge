@@ -29,6 +29,7 @@ import {
   type PartParams, type PartType,
 } from "@/lib/part-builders";
 import { exportSTLBinary, exportOBJ, downloadBlob } from "@/lib/stl-exporter";
+import { analyzeGroup, type DiagnosticOptions, type DiagnosticReport } from "@/lib/mesh-diagnostics";
 
 export const Route = createFileRoute("/")({
   head: () => ({
