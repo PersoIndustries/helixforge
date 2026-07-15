@@ -724,6 +724,9 @@ function HelixForge() {
                         <NumberControl label="Profundidad de rosca" value={p!.wireThickness} min={0.2} max={5} step={0.05}
                           tooltip="Profundidad radial de cada filete. Ajusta según el tornillo que debe alojarse."
                           onChange={(v) => updateSelectedParams("wireThickness", v)} />
+                        <NumberControl label="Ancho de pala (rosca)" value={p!.flightWidth} min={0.1} max={Math.max(0.2, p!.pitch * 0.95)} step={0.05}
+                          tooltip="Ancho axial del filete de la rosca interior. Debe ser menor que el paso."
+                          onChange={(v) => updateSelectedParams("flightWidth", v)} />
                       </Section>
 
                       <Section title="Agarradera exterior (grip)">
