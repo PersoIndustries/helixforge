@@ -5,11 +5,21 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 export type ViewMode = "solid" | "wireframe" | "transparent";
 export type MaterialPreset = "steel" | "aluminum" | "brass";
 
+export interface PartRenderInput {
+  id: string;
+  group: THREE.Group;
+  transform: { x: number; y: number; z: number; rz: number };
+  visible: boolean;
+}
+
 export interface ViewerHandle {
-  setPart: (group: THREE.Group) => void;
+  setParts: (parts: PartRenderInput[]) => void;
+  setSelected: (id: string | null) => void;
   getScene: () => THREE.Scene;
-  getPartGroup: () => THREE.Group | null;
+  getPartGroup: (id: string) => THREE.Group | null;
+  getAssemblyGroup: () => THREE.Group;
   setView: (v: "front" | "side" | "top" | "iso" | "fit") => void;
+  focusOn: (id: string | null) => void;
   setViewMode: (m: ViewMode) => void;
   setMaterial: (m: MaterialPreset) => void;
   setAutoRotate: (b: boolean) => void;
@@ -19,20 +29,30 @@ export interface ViewerHandle {
   setClipPosition: (v: number) => void;
 }
 
+interface Props {
+  onPick?: (id: string | null) => void;
+}
+
 const MATERIAL_PRESETS: Record<MaterialPreset, { color: number; metalness: number; roughness: number }> = {
   steel: { color: 0xb8bfc7, metalness: 0.9, roughness: 0.32 },
   aluminum: { color: 0xd4d7db, metalness: 0.85, roughness: 0.44 },
   brass: { color: 0xd4a24a, metalness: 0.9, roughness: 0.3 },
 };
 
-export const Viewer3D = forwardRef<ViewerHandle>(function Viewer3D(_props, ref) {
+const HIGHLIGHT_COLOR = 0x22d3ee;
+
+export const Viewer3D = forwardRef<ViewerHandle, Props>(function Viewer3D({ onPick }, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const onPickRef = useRef(onPick);
+  onPickRef.current = onPick;
+
   const stateRef = useRef<{
     renderer: THREE.WebGLRenderer;
     scene: THREE.Scene;
     camera: THREE.PerspectiveCamera;
     controls: OrbitControls;
-    partGroup: THREE.Group | null;
+    assembly: THREE.Group; // container for all part groups
+    partMap: Map<string, THREE.Group>;
     grid: THREE.GridHelper;
     axes: THREE.AxesHelper;
     ruler: THREE.Group;
@@ -41,6 +61,7 @@ export const Viewer3D = forwardRef<ViewerHandle>(function Viewer3D(_props, ref) 
     clipEnabled: boolean;
     viewMode: ViewMode;
     materialPreset: MaterialPreset;
+    selectedId: string | null;
     frame: number;
   } | null>(null);
 
@@ -48,10 +69,10 @@ export const Viewer3D = forwardRef<ViewerHandle>(function Viewer3D(_props, ref) 
     const container = containerRef.current!;
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0e1418);
-    scene.fog = new THREE.Fog(0x0e1418, 200, 800);
+    scene.fog = new THREE.Fog(0x0e1418, 400, 1200);
 
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 5000);
-    camera.position.set(80, -80, 60);
+    camera.position.set(120, -120, 90);
     camera.up.set(0, 0, 1);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
@@ -62,8 +83,7 @@ export const Viewer3D = forwardRef<ViewerHandle>(function Viewer3D(_props, ref) 
     container.appendChild(renderer.domElement);
 
     // Lights
-    const hemi = new THREE.HemisphereLight(0x88aacc, 0x101418, 0.6);
-    scene.add(hemi);
+    scene.add(new THREE.HemisphereLight(0x88aacc, 0x101418, 0.6));
     const key = new THREE.DirectionalLight(0xffffff, 1.4);
     key.position.set(60, -80, 100);
     scene.add(key);
@@ -74,22 +94,19 @@ export const Viewer3D = forwardRef<ViewerHandle>(function Viewer3D(_props, ref) 
     rim.position.set(-40, -80, -40);
     scene.add(rim);
 
-    // Environment approximation via pmrem-less: simple room encoding
     const pmrem = new THREE.PMREMGenerator(renderer);
-    const envTex = pmrem.fromScene(new THREE.Scene()).texture;
-    scene.environment = envTex;
+    scene.environment = pmrem.fromScene(new THREE.Scene()).texture;
 
     // Grid + Axes
-    const grid = new THREE.GridHelper(200, 20, 0x2a5566, 0x1c3844);
+    const grid = new THREE.GridHelper(400, 40, 0x2a5566, 0x1c3844);
     grid.rotation.x = Math.PI / 2;
     (grid.material as THREE.Material).transparent = true;
     (grid.material as THREE.Material).opacity = 0.5;
     scene.add(grid);
 
-    const axes = new THREE.AxesHelper(50);
+    const axes = new THREE.AxesHelper(60);
     scene.add(axes);
 
-    // Ruler ticks along X axis
     const ruler = new THREE.Group();
     const tickMat = new THREE.LineBasicMaterial({ color: 0x55b8c8 });
     for (let i = -100; i <= 100; i += 10) {
@@ -101,35 +118,32 @@ export const Viewer3D = forwardRef<ViewerHandle>(function Viewer3D(_props, ref) 
     }
     scene.add(ruler);
 
+    // Assembly root
+    const assembly = new THREE.Group();
+    assembly.name = "Assembly";
+    scene.add(assembly);
+
     // Controls
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
     controls.rotateSpeed = 0.9;
     controls.zoomSpeed = 0.9;
-    controls.panSpeed = 0.9;
     controls.autoRotateSpeed = 0.8;
 
-    // Clip plane
     const clipPlane = new THREE.Plane(new THREE.Vector3(1, 0, 0), 0);
-    const clipHelper = new THREE.PlaneHelper(clipPlane, 80, 0x22d3ee);
+    const clipHelper = new THREE.PlaneHelper(clipPlane, 100, 0x22d3ee);
     clipHelper.visible = false;
     scene.add(clipHelper);
 
     const state = {
-      renderer,
-      scene,
-      camera,
-      controls,
-      partGroup: null as THREE.Group | null,
-      grid,
-      axes,
-      ruler,
-      clipPlane,
-      clipHelper,
+      renderer, scene, camera, controls, assembly,
+      partMap: new Map<string, THREE.Group>(),
+      grid, axes, ruler, clipPlane, clipHelper,
       clipEnabled: false,
       viewMode: "solid" as ViewMode,
       materialPreset: "steel" as MaterialPreset,
+      selectedId: null as string | null,
       frame: 0,
     };
     stateRef.current = state;
@@ -152,38 +166,59 @@ export const Viewer3D = forwardRef<ViewerHandle>(function Viewer3D(_props, ref) 
     };
     animate();
 
+    // Click picking
+    const raycaster = new THREE.Raycaster();
+    const ptr = new THREE.Vector2();
+    let downX = 0, downY = 0, downT = 0;
+    const onDown = (e: PointerEvent) => { downX = e.clientX; downY = e.clientY; downT = performance.now(); };
+    const onUp = (e: PointerEvent) => {
+      const dx = Math.abs(e.clientX - downX);
+      const dy = Math.abs(e.clientY - downY);
+      if (dx > 4 || dy > 4 || performance.now() - downT > 400) return;
+      const rect = renderer.domElement.getBoundingClientRect();
+      ptr.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      ptr.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(ptr, camera);
+      const hits = raycaster.intersectObjects(assembly.children, true);
+      let pickedId: string | null = null;
+      for (const h of hits) {
+        let o: THREE.Object3D | null = h.object;
+        while (o) {
+          if (o.userData && o.userData.partId) { pickedId = o.userData.partId as string; break; }
+          o = o.parent;
+        }
+        if (pickedId) break;
+      }
+      onPickRef.current?.(pickedId);
+    };
+    renderer.domElement.addEventListener("pointerdown", onDown);
+    renderer.domElement.addEventListener("pointerup", onUp);
+
     // Keyboard shortcuts
     const onKey = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement)?.tagName === "INPUT") return;
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
       const map: Record<string, "front" | "side" | "top" | "iso" | "fit"> = {
-        "1": "front",
-        "2": "side",
-        "3": "top",
-        "4": "iso",
-        f: "fit",
+        "1": "front", "2": "side", "3": "top", "4": "iso", f: "fit",
       };
       const v = map[e.key.toLowerCase()];
-      if (v) setViewImpl(v);
+      if (v) setViewImpl(v, state.selectedId && v === "fit" ? state.selectedId : null);
     };
     window.addEventListener("keydown", onKey);
 
-    function setViewImpl(v: "front" | "side" | "top" | "iso" | "fit") {
-      if (!state.partGroup) return;
-      const box = new THREE.Box3().setFromObject(state.partGroup);
+    function setViewImpl(v: "front" | "side" | "top" | "iso" | "fit", focusId: string | null = null) {
+      const target = focusId ? state.partMap.get(focusId) : state.assembly;
+      if (!target || (target === state.assembly && state.assembly.children.length === 0)) return;
+      const box = new THREE.Box3().setFromObject(target);
+      if (!isFinite(box.min.x)) return;
       const size = box.getSize(new THREE.Vector3());
       const center = box.getCenter(new THREE.Vector3());
-      const dist = Math.max(size.x, size.y, size.z) * 2.2 + 20;
+      const dist = Math.max(size.x, size.y, size.z, 20) * 2.2 + 20;
       controls.target.copy(center);
       switch (v) {
-        case "front":
-          camera.position.set(center.x, center.y - dist, center.z);
-          break;
-        case "side":
-          camera.position.set(center.x + dist, center.y, center.z);
-          break;
-        case "top":
-          camera.position.set(center.x, center.y, center.z + dist);
-          break;
+        case "front": camera.position.set(center.x, center.y - dist, center.z); break;
+        case "side": camera.position.set(center.x + dist, center.y, center.z); break;
+        case "top": camera.position.set(center.x, center.y, center.z + dist); break;
         case "iso":
         case "fit":
           camera.position.set(center.x + dist * 0.7, center.y - dist * 0.7, center.z + dist * 0.6);
@@ -192,27 +227,28 @@ export const Viewer3D = forwardRef<ViewerHandle>(function Viewer3D(_props, ref) 
       camera.lookAt(center);
       controls.update();
     }
-
-    (state as any).setViewImpl = setViewImpl;
+    (state as unknown as { setViewImpl: typeof setViewImpl }).setViewImpl = setViewImpl;
 
     return () => {
       cancelAnimationFrame(state.frame);
       window.removeEventListener("keydown", onKey);
+      renderer.domElement.removeEventListener("pointerdown", onDown);
+      renderer.domElement.removeEventListener("pointerup", onUp);
       ro.disconnect();
       renderer.dispose();
       container.removeChild(renderer.domElement);
     };
   }, []);
 
-  const applyMaterial = (group: THREE.Group) => {
+  const applyMaterialToGroup = (group: THREE.Group, selected: boolean) => {
     const s = stateRef.current!;
     const preset = MATERIAL_PRESETS[s.materialPreset];
     group.traverse((c) => {
       const m = c as THREE.Mesh;
       if (!m.isMesh) return;
-      // Preserve dark bore material
       const currentMat = m.material as THREE.MeshStandardMaterial;
-      if (currentMat && currentMat.color && currentMat.color.getHex() === 0x0b0f14) return;
+      const isBore = currentMat && currentMat.color && currentMat.color.getHex() === 0x0b0f14;
+      if (isBore) return;
       const mat = new THREE.MeshStandardMaterial({
         color: preset.color,
         metalness: preset.metalness,
@@ -220,51 +256,83 @@ export const Viewer3D = forwardRef<ViewerHandle>(function Viewer3D(_props, ref) 
         envMapIntensity: 1.1,
         wireframe: s.viewMode === "wireframe",
         transparent: s.viewMode === "transparent",
-        opacity: s.viewMode === "transparent" ? 0.45 : 1,
+        opacity: s.viewMode === "transparent" ? 0.4 : 1,
         clippingPlanes: s.clipEnabled ? [s.clipPlane] : [],
         side: THREE.DoubleSide,
+        emissive: selected ? new THREE.Color(HIGHLIGHT_COLOR) : new THREE.Color(0x000000),
+        emissiveIntensity: selected ? 0.35 : 0,
       });
       m.material = mat;
     });
   };
 
+  const reapplyAllMaterials = () => {
+    const s = stateRef.current!;
+    s.partMap.forEach((g, id) => applyMaterialToGroup(g, id === s.selectedId));
+  };
+
   useImperativeHandle(ref, () => ({
-    setPart: (group: THREE.Group) => {
+    setParts: (parts: PartRenderInput[]) => {
       const s = stateRef.current!;
-      if (s.partGroup) {
-        s.scene.remove(s.partGroup);
-        s.partGroup.traverse((c) => {
-          const m = c as THREE.Mesh;
-          if (m.isMesh) {
-            m.geometry?.dispose();
-            const mat = m.material as THREE.Material | THREE.Material[];
-            if (Array.isArray(mat)) mat.forEach((x) => x.dispose());
-            else mat?.dispose();
-          }
-        });
+      const incoming = new Set(parts.map((p) => p.id));
+      // Remove missing
+      for (const [id, g] of Array.from(s.partMap.entries())) {
+        if (!incoming.has(id)) {
+          s.assembly.remove(g);
+          g.traverse((c) => {
+            const m = c as THREE.Mesh;
+            if (m.isMesh) {
+              m.geometry?.dispose();
+              const mat = m.material as THREE.Material | THREE.Material[];
+              if (Array.isArray(mat)) mat.forEach((x) => x.dispose());
+              else mat?.dispose();
+            }
+          });
+          s.partMap.delete(id);
+        }
       }
-      s.partGroup = group;
-      applyMaterial(group);
-      s.scene.add(group);
-      (s as any).setViewImpl("iso");
+      // Add or replace
+      for (const p of parts) {
+        const existing = s.partMap.get(p.id);
+        if (existing !== p.group) {
+          if (existing) {
+            s.assembly.remove(existing);
+            existing.traverse((c) => {
+              const m = c as THREE.Mesh;
+              if (m.isMesh) {
+                m.geometry?.dispose();
+                const mat = m.material as THREE.Material | THREE.Material[];
+                if (Array.isArray(mat)) mat.forEach((x) => x.dispose());
+                else mat?.dispose();
+              }
+            });
+          }
+          p.group.userData.partId = p.id;
+          p.group.traverse((c) => { c.userData.partId = p.id; });
+          s.assembly.add(p.group);
+          s.partMap.set(p.id, p.group);
+          applyMaterialToGroup(p.group, p.id === s.selectedId);
+        }
+        // Transform & visibility (relative to internal centering)
+        p.group.position.set(p.transform.x, p.transform.y, p.transform.z);
+        // Preserve original centering by using an inner offset? Simpler: parts are built centered, translate is absolute.
+        p.group.rotation.set(0, 0, p.transform.rz);
+        p.group.visible = p.visible;
+      }
+    },
+    setSelected: (id) => {
+      const s = stateRef.current!;
+      s.selectedId = id;
+      reapplyAllMaterials();
     },
     getScene: () => stateRef.current!.scene,
-    getPartGroup: () => stateRef.current!.partGroup,
-    setView: (v) => (stateRef.current as any)?.setViewImpl(v),
-    setViewMode: (m) => {
-      const s = stateRef.current!;
-      s.viewMode = m;
-      if (s.partGroup) applyMaterial(s.partGroup);
-    },
-    setMaterial: (m) => {
-      const s = stateRef.current!;
-      s.materialPreset = m;
-      if (s.partGroup) applyMaterial(s.partGroup);
-    },
-    setAutoRotate: (b) => {
-      const s = stateRef.current!;
-      s.controls.autoRotate = b;
-    },
+    getPartGroup: (id) => stateRef.current!.partMap.get(id) ?? null,
+    getAssemblyGroup: () => stateRef.current!.assembly,
+    setView: (v) => (stateRef.current as unknown as { setViewImpl: (v: string, id: string | null) => void }).setViewImpl(v, null),
+    focusOn: (id) => (stateRef.current as unknown as { setViewImpl: (v: string, id: string | null) => void }).setViewImpl("iso", id),
+    setViewMode: (m) => { stateRef.current!.viewMode = m; reapplyAllMaterials(); },
+    setMaterial: (m) => { stateRef.current!.materialPreset = m; reapplyAllMaterials(); },
+    setAutoRotate: (b) => { stateRef.current!.controls.autoRotate = b; },
     setGridVisible: (b) => (stateRef.current!.grid.visible = b),
     setAxesVisible: (b) => {
       const s = stateRef.current!;
@@ -275,12 +343,9 @@ export const Viewer3D = forwardRef<ViewerHandle>(function Viewer3D(_props, ref) 
       const s = stateRef.current!;
       s.clipEnabled = b;
       s.clipHelper.visible = b;
-      if (s.partGroup) applyMaterial(s.partGroup);
+      reapplyAllMaterials();
     },
-    setClipPosition: (v) => {
-      const s = stateRef.current!;
-      s.clipPlane.constant = v;
-    },
+    setClipPosition: (v) => { stateRef.current!.clipPlane.constant = v; },
   }));
 
   return (
