@@ -120,6 +120,19 @@ function HelixForge() {
   const viewerRef = useRef<ViewerHandle>(null);
   const [statsTick, setStatsTick] = useState(0);
 
+  // Mesh diagnostics
+  const [diagOpen, setDiagOpen] = useState(false);
+  const [diagOpts, setDiagOpts] = useState<DiagnosticOptions>({
+    showOpenEdges: true,
+    showNonManifold: true,
+    showNormals: false,
+    showThickness: false,
+    wallThicknessMin: 1.2,
+    wallThicknessSafe: 2.0,
+  });
+  const [diagReport, setDiagReport] = useState<DiagnosticReport | null>(null);
+  const [diagScope, setDiagScope] = useState<"selected" | "assembly">("selected");
+
   // Group cache: id + params signature -> group
   const groupCacheRef = useRef<Map<string, { sig: string; group: THREE.Group }>>(new Map());
 
