@@ -241,6 +241,7 @@ function HelixForge() {
   // Validation for selected
   const validation = useMemo(() => {
     if (!selected) return [] as { level: "warn" | "error" | "ok"; text: string }[];
+    if (selected.type === "note") return [{ level: "ok" as const, text: "Nota del proyecto (sin geometría)." }];
     const p = selected.params;
     const t = selected.type;
     const msgs: { level: "warn" | "error" | "ok"; text: string }[] = [];
