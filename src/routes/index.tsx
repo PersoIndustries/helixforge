@@ -688,6 +688,13 @@ function HelixForge() {
                         {p.visible ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
                       </button>
                       <button
+                        onClick={(e) => { e.stopPropagation(); copyPartToClipboard(p.id); }}
+                        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-primary"
+                        title="Copiar configuración al portapapeles"
+                      >
+                        <ClipboardCopy className="h-3 w-3" />
+                      </button>
+                      <button
                         onClick={(e) => { e.stopPropagation(); duplicatePart(p.id); }}
                         className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-primary"
                         title="Duplicar"
