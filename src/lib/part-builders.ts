@@ -519,6 +519,127 @@ function buildKnurledCylinder(
 }
 
 
+type CapRadiusFn = (theta: number) => number;
+
+interface CapLayer {
+  z: number;
+  radiusAt: CapRadiusFn;
+}
+
+const CAP_SEGMENTS = 128;
+const HEX_STEP = Math.PI / 3;
+const HEX_LOCAL_OFFSET = Math.PI / 6;
+
+function normalizeHexLocal(theta: number) {
+  return ((((theta + HEX_LOCAL_OFFSET) % HEX_STEP) + HEX_STEP) % HEX_STEP) - HEX_LOCAL_OFFSET;
+}
+
+function makeCircleRadius(radius: number): CapRadiusFn {
+  return () => radius;
+}
+
+function makeHexCircumRadius(circumRadius: number): CapRadiusFn {
+  const apothem = circumRadius * Math.cos(Math.PI / 6);
+  return (theta) => apothem / Math.max(0.2, Math.cos(normalizeHexLocal(theta)));
+}
+
+function makeHexAcrossFlatsRadius(acrossFlats: number, maxRadius: number): CapRadiusFn {
+  const apothem = Math.max(0.05, Math.min(acrossFlats / 2, maxRadius * Math.cos(Math.PI / 6)));
+  return (theta) => apothem / Math.max(0.2, Math.cos(normalizeHexLocal(theta)));
+}
+
+function makeKnurlRadius(radius: number, intensity: number, ridges = 60): CapRadiusFn {
+  const groove = 0.15 + Math.max(0, Math.min(1, intensity)) * 0.6;
+  return (theta) => radius - (0.5 - 0.5 * Math.cos(theta * ridges)) * groove;
+}
+
+function makeSlotRadius(length: number, width: number, maxRadius: number): CapRadiusFn {
+  const halfL = Math.max(0.05, Math.min(length / 2, maxRadius));
+  const halfW = Math.max(0.05, Math.min(width / 2, maxRadius));
+  return (theta) => {
+    const c = Math.abs(Math.cos(theta));
+    const s = Math.abs(Math.sin(theta));
+    const rx = c > 1e-6 ? halfL / c : Infinity;
+    const ry = s > 1e-6 ? halfW / s : Infinity;
+    return Math.min(maxRadius, rx, ry);
+  };
+}
+
+function addVertexForProfile(positions: number[], radiusAt: CapRadiusFn, theta: number, z: number) {
+  const r = Math.max(0.001, radiusAt(theta));
+  positions.push(Math.cos(theta) * r, Math.sin(theta) * r, z);
+}
+
+function createLayeredSurface(layers: CapLayer[], segments: number) {
+  const positions: number[] = [];
+  const indices: number[] = [];
+  for (const layer of layers) {
+    for (let j = 0; j < segments; j++) {
+      addVertexForProfile(positions, layer.radiusAt, (j / segments) * Math.PI * 2, layer.z);
+    }
+  }
+  for (let i = 0; i < layers.length - 1; i++) {
+    const a0 = i * segments;
+    const b0 = (i + 1) * segments;
+    for (let j = 0; j < segments; j++) {
+      const n = (j + 1) % segments;
+      const a = a0 + j;
+      const b = a0 + n;
+      const c = b0 + j;
+      const d = b0 + n;
+      indices.push(a, b, d, a, d, c);
+    }
+  }
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geom.setIndex(indices);
+  geom.computeVertexNormals();
+  return geom;
+}
+
+function createAnnulus(z: number, inner: CapRadiusFn, outer: CapRadiusFn, segments: number, flip = false) {
+  const positions: number[] = [];
+  const indices: number[] = [];
+  for (let j = 0; j < segments; j++) addVertexForProfile(positions, inner, (j / segments) * Math.PI * 2, z);
+  for (let j = 0; j < segments; j++) addVertexForProfile(positions, outer, (j / segments) * Math.PI * 2, z);
+  for (let j = 0; j < segments; j++) {
+    const n = (j + 1) % segments;
+    const i0 = j;
+    const i1 = n;
+    const o0 = segments + j;
+    const o1 = segments + n;
+    if (flip) indices.push(o0, i1, o1, o0, i0, i1);
+    else indices.push(o0, o1, i1, o0, i1, i0);
+  }
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geom.setIndex(indices);
+  geom.computeVertexNormals();
+  return geom;
+}
+
+function createDisk(z: number, radiusAt: CapRadiusFn, segments: number, flip = false) {
+  const positions: number[] = [0, 0, z];
+  const indices: number[] = [];
+  for (let j = 0; j < segments; j++) addVertexForProfile(positions, radiusAt, (j / segments) * Math.PI * 2, z);
+  for (let j = 0; j < segments; j++) {
+    const a = j + 1;
+    const b = ((j + 1) % segments) + 1;
+    if (flip) indices.push(0, b, a);
+    else indices.push(0, a, b);
+  }
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geom.setIndex(indices);
+  geom.computeVertexNormals();
+  return geom;
+}
+
+function makeCapMesh(geometry: THREE.BufferGeometry, material: THREE.Material) {
+  return new THREE.Mesh(geometry, material);
+}
+
+
 function buildThreadedCap(p: PartParams, material: THREE.Material): THREE.Group {
   const group = new THREE.Group();
   const totalH = p.length;
@@ -556,174 +677,115 @@ function buildThreadedCap(p: PartParams, material: THREE.Material): THREE.Group 
 
   const smoothTopH = Math.max(0, totalH - gripHeight);
   const hasHex = gripType === "hex" || gripType === "hex-knurled";
-  // Smooth top above grip: only stays hex when the *entire* grip is pure hex.
-  // For hex-knurled, the top of the grip is knurled → round smooth top instead.
   const smoothTopIsHex = gripType === "hex";
-  const topDiscShape = smoothTopH > 0 ? (smoothTopIsHex ? 6 : 64) : hasHex ? 6 : 64;
-  // Bottom rim matches the bottom of the grip.
-  const gripBottomShape = hasHex ? 6 : 64;
 
-  // --- Grip region (bottom) ---
-  // Helper: add a full annular cap facing +Z between the cavity bore and the
-  // outer radius. Used at every transition where two grip sections meet so the
-  // outer surface stays watertight regardless of the shape mismatch (hex flats
-  // vs round cylinder, etc.).
-  const addSeamAnnulus = (z: number, segments: number) => {
-    const seam = new THREE.Mesh(
-      new THREE.RingGeometry(boreR, outerR, segments),
-      shellMat
-    );
-    seam.position.z = z;
-    group.add(seam);
-  };
+  // Build the cap shell as matched radial profiles instead of overlapping
+  // open cylinders. Every grip transition, rim and tool recess shares the
+  // same angular vertices, so diagnostics and STL export see closed loops.
+  const circleOuter = makeCircleRadius(outerR);
+  const boreProfile = makeCircleRadius(boreR);
+  const hexOuter = makeHexCircumRadius(outerR);
+  const knurlOuter = makeKnurlRadius(outerR, knurl);
+  const smoothTopProfile = smoothTopIsHex ? hexOuter : circleOuter;
+  const bottomProfile = hasHex ? hexOuter : gripType === "knurled" ? knurlOuter : circleOuter;
+  const topProfile = smoothTopH > 0
+    ? smoothTopProfile
+    : gripType === "hex-knurled"
+      ? knurlOuter
+      : bottomProfile;
 
+  const layers: CapLayer[] = [];
+  const pushLayer = (z: number, radiusAt: CapRadiusFn) => layers.push({ z, radiusAt });
+  const transitionBand = (before: number, after: number) => Math.max(0, Math.min(0.25, before * 0.35, after * 0.35));
   if (gripType === "hex-knurled" && gripHeight > 0) {
     const hexH = gripHeight * 0.55;
     const knurlH = gripHeight - hexH;
-    const hex = new THREE.Mesh(
-      new THREE.CylinderGeometry(outerR, outerR, hexH, 6, 1, true),
-      shellMat
-    );
-    hex.rotation.x = Math.PI / 2;
-    hex.position.z = hexH / 2;
-    group.add(hex);
-    if (knurlH > 0) group.add(buildKnurledCylinder(outerR, knurlH, knurl, shellMat, hexH));
-    // Full annulus covers both the hex's open top and the notch triangles
-    // between hex flats and the round knurled column above.
-    addSeamAnnulus(hexH, 64);
+    const blend = transitionBand(hexH, knurlH);
+    pushLayer(0, hexOuter);
+    pushLayer(Math.max(0, hexH - blend), hexOuter);
+    pushLayer(Math.min(gripHeight, hexH + blend), knurlOuter);
+    pushLayer(gripHeight, knurlOuter);
   } else if (gripType === "hex" && gripHeight > 0) {
-    const hex = new THREE.Mesh(
-      new THREE.CylinderGeometry(outerR, outerR, gripHeight, 6, 1, true),
-      shellMat
-    );
-    hex.rotation.x = Math.PI / 2;
-    hex.position.z = gripHeight / 2;
-    group.add(hex);
+    pushLayer(0, hexOuter);
+    pushLayer(gripHeight, hexOuter);
   } else if (gripType === "knurled" && gripHeight > 0) {
-    group.add(buildKnurledCylinder(outerR, gripHeight, knurl, shellMat, 0));
-  } else if (gripHeight > 0) {
-    const cy = new THREE.Mesh(
-      new THREE.CylinderGeometry(outerR, outerR, gripHeight, 64, 1, true),
-      shellMat
-    );
-    cy.rotation.x = Math.PI / 2;
-    cy.position.z = gripHeight / 2;
-    group.add(cy);
+    pushLayer(0, knurlOuter);
+    pushLayer(gripHeight, knurlOuter);
+  } else {
+    pushLayer(0, circleOuter);
+    pushLayer(Math.max(0, gripHeight), circleOuter);
   }
-
-  // --- Smooth top region above grip ---
   if (smoothTopH > 0) {
-    const cy = new THREE.Mesh(
-      new THREE.CylinderGeometry(outerR, outerR, smoothTopH, smoothTopIsHex ? 6 : 64, 1, true),
-      shellMat
-    );
-    cy.rotation.x = Math.PI / 2;
-    cy.position.z = gripHeight + smoothTopH / 2;
-    group.add(cy);
-    // Transition annulus at the grip → smooth-top junction. Covers hex-flat
-    // notches and any radius mismatch between the grip section (hex/knurled)
-    // and the round smooth top. Skipped when both sides are pure hex since
-    // they already share the same profile.
-    if (!(hasHex && smoothTopIsHex)) {
-      addSeamAnnulus(gripHeight, 64);
+    const last = layers[layers.length - 1];
+    if (last.radiusAt !== smoothTopProfile) {
+      const previousZ = layers.length > 1 ? layers[layers.length - 2].z : 0;
+      const blend = transitionBand(Math.max(0, gripHeight - previousZ), smoothTopH);
+      if (blend > 0 && last.z === gripHeight) {
+        last.z = Math.max(previousZ, gripHeight - blend);
+        pushLayer(Math.min(totalH, gripHeight + blend), smoothTopProfile);
+      } else if (last.z !== gripHeight) {
+        pushLayer(gripHeight, smoothTopProfile);
+      }
+    } else if (last.z !== gripHeight) {
+      pushLayer(gripHeight, smoothTopProfile);
     }
+    pushLayer(totalH, smoothTopProfile);
+  } else if (layers[layers.length - 1].z !== totalH) {
+    pushLayer(totalH, topProfile);
   }
-
+  group.add(makeCapMesh(createLayeredSurface(layers, CAP_SEGMENTS), shellMat));
 
   // --- Top disc / annulus (closed end, with optional outside tool hole) ---
   const outsideHex =
     toolHoleType === "hex" && toolHoleLocation === "outside-top" && toolHoleDepth > 0;
   const outsideSlot =
     toolHoleType === "slot" && toolHoleLocation === "outside-top" && toolHoleDepth > 0;
-  const outsideHoleR = outsideHex ? Math.min(toolHoleSize / 2, outerR - 0.6) : 0;
-  if (outsideHex && outsideHoleR > 0) {
-    const topRing = new THREE.Mesh(
-      new THREE.RingGeometry(outsideHoleR, outerR, topDiscShape),
-      shellMat
-    );
-    topRing.position.z = totalH;
-    group.add(topRing);
-    // Hex pocket wall going down from top surface
-    const hWall = new THREE.Mesh(
-      new THREE.CylinderGeometry(outsideHoleR, outsideHoleR, toolHoleDepth, 6, 1, true),
-      shellMat
-    );
-    hWall.rotation.x = Math.PI / 2;
-    hWall.position.z = totalH - toolHoleDepth / 2;
-    group.add(hWall);
-    const hFloor = new THREE.Mesh(new THREE.CircleGeometry(outsideHoleR, 6), shellMat);
-    hFloor.position.z = totalH - toolHoleDepth;
-    group.add(hFloor);
+  const outsideHoleProfile = outsideHex
+    ? makeHexAcrossFlatsRadius(toolHoleSize, outerR - 0.6)
+    : outsideSlot
+      ? makeSlotRadius(Math.min(toolHoleSize, outerR * 1.6), Math.max(0.5, toolHoleSize * 0.22), outerR - 0.6)
+      : null;
+  if (outsideHoleProfile) {
+    group.add(makeCapMesh(createAnnulus(totalH, outsideHoleProfile, topProfile, CAP_SEGMENTS), shellMat));
+    group.add(makeCapMesh(createLayeredSurface([
+      { z: totalH - toolHoleDepth, radiusAt: outsideHoleProfile },
+      { z: totalH, radiusAt: outsideHoleProfile },
+    ], CAP_SEGMENTS), shellMat));
+    group.add(makeCapMesh(createDisk(totalH - toolHoleDepth, outsideHoleProfile, CAP_SEGMENTS, true), shellMat));
   } else {
-    const top = new THREE.Mesh(new THREE.CircleGeometry(outerR, topDiscShape), shellMat);
-    top.position.z = totalH;
-    group.add(top);
-    if (outsideSlot) {
-      const slotL = Math.min(toolHoleSize, outerR * 1.6);
-      const slotW = Math.max(0.5, toolHoleSize * 0.22);
-      const slot = new THREE.Mesh(
-        new THREE.BoxGeometry(slotL, slotW, toolHoleDepth),
-        new THREE.MeshStandardMaterial({ color: 0x0b0f14, metalness: 0.2, roughness: 0.95 })
-      );
-      slot.position.z = totalH - toolHoleDepth / 2;
-      group.add(slot);
-    }
+    group.add(makeCapMesh(createDisk(totalH, topProfile, CAP_SEGMENTS), shellMat));
   }
 
   // --- Bottom rim annulus (visible opening) ---
-  const rim = new THREE.Mesh(
-    new THREE.RingGeometry(boreR, outerR, gripBottomShape),
-    shellMat
-  );
-  rim.rotation.x = Math.PI; // face -Z
-  rim.position.z = 0;
-  group.add(rim);
+  group.add(makeCapMesh(createAnnulus(0, boreProfile, bottomProfile, CAP_SEGMENTS, true), shellMat));
 
   // --- Inner cavity wall (open-ended, DoubleSide) ---
-  const bore = new THREE.Mesh(
-    new THREE.CylinderGeometry(boreR, boreR, interiorH, 64, 1, true),
-    shellMat
-  );
-  bore.rotation.x = Math.PI / 2;
-  bore.position.z = interiorH / 2;
-  group.add(bore);
+  group.add(makeCapMesh(createLayeredSurface([
+    { z: 0, radiusAt: boreProfile },
+    { z: interiorH, radiusAt: boreProfile },
+  ], CAP_SEGMENTS), shellMat));
 
   // --- Cavity ceiling annulus (inside top of cavity, facing down) ---
-  const insideHoleR =
-    toolHoleType === "hex" && toolHoleLocation === "inside"
-      ? Math.min(toolHoleSize / 2, boreR - 0.5)
-      : 0;
-  const ceilingInner = Math.max(0.01, insideHoleR);
-  const ceiling = new THREE.Mesh(
-    new THREE.RingGeometry(ceilingInner, boreR, 64),
-    shellMat
-  );
-  ceiling.rotation.x = Math.PI; // face -Z (into cavity)
-  ceiling.position.z = interiorH;
-  group.add(ceiling);
+  const insideHex = toolHoleType === "hex" && toolHoleLocation === "inside" && toolHoleDepth > 0;
+  const insideSlot = toolHoleType === "slot" && toolHoleLocation === "inside" && toolHoleDepth > 0;
+  const insideHoleProfile = insideHex
+    ? makeHexAcrossFlatsRadius(toolHoleSize, boreR - 0.5)
+    : insideSlot
+      ? makeSlotRadius(Math.min(toolHoleSize, boreR * 1.6), Math.max(0.5, toolHoleSize * 0.22), boreR - 0.5)
+      : null;
+  if (insideHoleProfile) {
+    group.add(makeCapMesh(createAnnulus(interiorH, insideHoleProfile, boreProfile, CAP_SEGMENTS, true), shellMat));
+  } else {
+    group.add(makeCapMesh(createDisk(interiorH, boreProfile, CAP_SEGMENTS, true), shellMat));
+  }
 
   // --- Inside tool hole (blind indent from cavity ceiling toward top) ---
-  if (toolHoleLocation === "inside" && toolHoleType === "hex" && insideHoleR > 0 && toolHoleDepth > 0) {
-    const hWall = new THREE.Mesh(
-      new THREE.CylinderGeometry(insideHoleR, insideHoleR, toolHoleDepth, 6, 1, true),
-      shellMat
-    );
-    hWall.rotation.x = Math.PI / 2;
-    hWall.position.z = interiorH + toolHoleDepth / 2;
-    group.add(hWall);
-    const hCap = new THREE.Mesh(new THREE.CircleGeometry(insideHoleR, 6), shellMat);
-    hCap.rotation.x = Math.PI;
-    hCap.position.z = interiorH + toolHoleDepth;
-    group.add(hCap);
-  } else if (toolHoleLocation === "inside" && toolHoleType === "slot" && toolHoleDepth > 0) {
-    const slotL = Math.min(toolHoleSize, boreR * 1.6);
-    const slotW = Math.max(0.5, toolHoleSize * 0.22);
-    const slot = new THREE.Mesh(
-      new THREE.BoxGeometry(slotL, slotW, toolHoleDepth),
-      new THREE.MeshStandardMaterial({ color: 0x0b0f14, metalness: 0.2, roughness: 0.95 })
-    );
-    slot.position.z = interiorH + toolHoleDepth / 2;
-    group.add(slot);
+  if (insideHoleProfile) {
+    group.add(makeCapMesh(createLayeredSurface([
+      { z: interiorH, radiusAt: insideHoleProfile },
+      { z: interiorH + toolHoleDepth, radiusAt: insideHoleProfile },
+    ], CAP_SEGMENTS), shellMat));
+    group.add(makeCapMesh(createDisk(interiorH + toolHoleDepth, insideHoleProfile, CAP_SEGMENTS), shellMat));
   }
 
   // --- Internal thread on cavity wall ---
