@@ -400,10 +400,49 @@ function HelixForge() {
               )}
 
               {partType === "auger" && (
-                <Section title="Sinfín">
-                  <NumberControl label="Diámetro eje" value={params.shaftDiameter ?? 10} min={1} max={100} step={0.1} onChange={(v) => update("shaftDiameter", v)} />
-                  <NumberControl label="Espesor pala" value={params.flightThickness ?? 2} min={0.4} max={20} step={0.1} onChange={(v) => update("flightThickness", v)} />
-                </Section>
+                <>
+                  <Section title="Sinfín">
+                    <NumberControl label="Diámetro eje" value={params.shaftDiameter ?? 10} min={1} max={100} step={0.1} onChange={(v) => update("shaftDiameter", v)} />
+                    <NumberControl label="Espesor pala" value={params.flightThickness ?? 2} min={0.4} max={20} step={0.1} onChange={(v) => update("flightThickness", v)} />
+                  </Section>
+                  <Section title="Refuerzo / Fillet">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-muted-foreground" title="Añade material de refuerzo entre el eje y la pala helicoidal para aumentar la resistencia mecánica">
+                        Tipo de refuerzo
+                      </label>
+                      <Select
+                        value={params.filletType ?? "none"}
+                        onValueChange={(v) => update("filletType", v as "none" | "circular" | "triangular" | "rounded")}
+                      >
+                        <SelectTrigger className="h-8 bg-input text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Ninguno</SelectItem>
+                          <SelectItem value="circular">Fillet circular</SelectItem>
+                          <SelectItem value="triangular">Triangular (rib)</SelectItem>
+                          <SelectItem value="rounded">Redondeado suave</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <NumberControl
+                      label="Radio de refuerzo"
+                      value={params.filletRadius ?? 0}
+                      min={0}
+                      max={Math.max(1, (params.flightWidth ?? 10) * 0.9)}
+                      step={0.1}
+                      tooltip="Añade material de refuerzo entre el eje y la pala helicoidal para aumentar la resistencia mecánica. Radio = 0 desactiva el refuerzo."
+                      onChange={(v) => update("filletRadius", v)}
+                    />
+                    <NumberControl
+                      label="Altura del refuerzo"
+                      value={params.filletHeight ?? params.filletRadius ?? 0}
+                      min={0}
+                      max={Math.max(1, (params.flightThickness ?? 2) * 4)}
+                      step={0.1}
+                      tooltip="Cuánto sube el refuerzo por la pared del eje. Igual al radio → fillet circular puro."
+                      onChange={(v) => update("filletHeight", v)}
+                    />
+                  </Section>
+                </>
               )}
 
               {partType === "threaded-cap" && (
