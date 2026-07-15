@@ -394,8 +394,13 @@ function buildNut(p: PartParams, material: THREE.Material): THREE.Group {
   bore.rotation.x = Math.PI / 2;
   bore.position.z = height / 2;
   group.add(bore);
-  // Internal thread
-  group.add(buildInternalThread(p, material, height, 0, boreR));
+  // Internal thread — for a threaded cylinder, default depth to the wall
+  // thickness (legacy behavior) unless the user set wireThickness explicitly.
+  const cylDepth =
+    p.wireThickness && p.wireThickness > 0
+      ? p.wireThickness
+      : (p.outerDiameter - p.innerDiameter) / 2;
+  group.add(buildInternalThread(p, material, height, 0, boreR, cylDepth));
   return group;
 }
 
