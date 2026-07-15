@@ -613,6 +613,28 @@ function HelixForge() {
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
+                    <Button size="sm" variant="ghost" className="h-6 px-2 text-primary hover:bg-primary/10" title="Pegar pieza del portapapeles">
+                      <ClipboardPaste className="h-3.5 w-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-64">
+                    <DropdownMenuLabel>Pegar desde portapapeles</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => pastePartFromClipboard("new")}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Como pieza nueva
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => pastePartFromClipboard("apply")}
+                      disabled={!selected}
+                    >
+                      <ClipboardPaste className="mr-2 h-4 w-4" />
+                      Aplicar a la seleccionada
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
                     <Button size="sm" variant="ghost" className="h-6 px-2 text-primary hover:bg-primary/10" title="Añadir pieza">
                       <Plus className="h-3.5 w-3.5" />
                     </Button>
