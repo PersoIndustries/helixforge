@@ -175,3 +175,47 @@ export function flightProfile(width: number, thickness: number) {
     { x: 0, y: t / 2 },
   ];
 }
+
+/* Fillet profile: fills the concave corner between the shaft outer
+   surface (local x = 0) and one face of the flight (local y = ±t/2).
+   Local coords match sweepProfileAlongHelix: x is radial outward from
+   the reference cylinder, y is axial. */
+export function filletProfile(opts: {
+  radiusRadial: number;
+  radiusAxial: number;
+  thickness: number;
+  side: "top" | "bottom";
+  kind: "circular" | "triangular" | "rounded";
+  segments?: number;
+}): { x: number; y: number }[] {
+  const { radiusRadial: rw, radiusAxial: rh, thickness, side, kind } = opts;
+  const seg = Math.max(6, opts.segments ?? 12);
+  const sign = side === "top" ? 1 : -1;
+  const base = (sign * thickness) / 2;
+  const apex = base + sign * rh;
+
+  const pts: { x: number; y: number }[] = [
+    { x: 0, y: base },
+    { x: rw, y: base },
+  ];
+
+  if (kind === "triangular") {
+    // straight hypotenuse implicit between (rw, base) and (0, apex)
+  } else if (kind === "rounded") {
+    // Convex quarter-ellipse centered at (0, base): bulges outward
+    for (let i = 1; i < seg; i++) {
+      const th = (i / seg) * (Math.PI / 2);
+      pts.push({ x: rw * Math.cos(th), y: base + sign * rh * Math.sin(th) });
+    }
+  } else {
+    // Concave quarter-ellipse centered at (rw, apex): classic fillet
+    for (let i = 1; i < seg; i++) {
+      const th = (i / seg) * (Math.PI / 2);
+      // param: from (rw, base) at th=0 to (0, apex) at th=π/2
+      pts.push({ x: rw * Math.cos(th), y: apex - sign * rh * Math.cos(th) });
+    }
+  }
+
+  pts.push({ x: 0, y: apex });
+  return pts;
+}
