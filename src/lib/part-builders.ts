@@ -5,6 +5,7 @@ import {
   triangleThreadProfile,
   trapezoidThreadProfile,
   flightProfile,
+  filletProfile,
 } from "./geometry";
 
 export type PartType =
