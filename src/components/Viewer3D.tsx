@@ -8,7 +8,7 @@ export type MaterialPreset = "steel" | "aluminum" | "brass";
 export interface PartRenderInput {
   id: string;
   group: THREE.Group;
-  transform: { x: number; y: number; z: number; rz: number };
+  transform: { x: number; y: number; z: number; rx: number; ry: number; rz: number };
   visible: boolean;
 }
 
