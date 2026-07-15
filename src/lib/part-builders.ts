@@ -496,14 +496,18 @@ function buildKnurledCylinder(
   const segments = Math.max(96, ridges * 2);
   const geom = new THREE.CylinderGeometry(radius, radius, height, segments, 1, true);
   const pos = geom.attributes.position as THREE.BufferAttribute;
-  const bump = 0.15 + Math.max(0, Math.min(1, intensity)) * 0.7; // mm
+  // Grooves are cut INWARD from the nominal outer radius so the outer envelope
+  // stays at `radius`. This lets top/bottom discs and seam rings at `outerR`
+  // close the mesh cleanly without leaving gaps around bumps that would
+  // otherwise protrude past the cap's outer surface.
+  const groove = 0.15 + Math.max(0, Math.min(1, intensity)) * 0.6; // mm inward
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i);
     const z = pos.getZ(i);
     const ang = Math.atan2(z, x);
     const r = Math.sqrt(x * x + z * z);
-    const mod = 0.5 + 0.5 * Math.cos(ang * ridges); // 0..1 ridged
-    const nr = r + mod * bump;
+    const mod = 0.5 - 0.5 * Math.cos(ang * ridges); // 0..1, 0 at ridge crest
+    const nr = r - mod * groove;
     pos.setX(i, Math.cos(ang) * nr);
     pos.setZ(i, Math.sin(ang) * nr);
   }
@@ -513,6 +517,7 @@ function buildKnurledCylinder(
   mesh.position.z = zBottom + height / 2;
   return mesh;
 }
+
 
 function buildThreadedCap(p: PartParams, material: THREE.Material): THREE.Group {
   const group = new THREE.Group();
@@ -559,6 +564,19 @@ function buildThreadedCap(p: PartParams, material: THREE.Material): THREE.Group 
   const gripBottomShape = hasHex ? 6 : 64;
 
   // --- Grip region (bottom) ---
+  // Helper: add a full annular cap facing +Z between the cavity bore and the
+  // outer radius. Used at every transition where two grip sections meet so the
+  // outer surface stays watertight regardless of the shape mismatch (hex flats
+  // vs round cylinder, etc.).
+  const addSeamAnnulus = (z: number, segments: number) => {
+    const seam = new THREE.Mesh(
+      new THREE.RingGeometry(boreR, outerR, segments),
+      shellMat
+    );
+    seam.position.z = z;
+    group.add(seam);
+  };
+
   if (gripType === "hex-knurled" && gripHeight > 0) {
     const hexH = gripHeight * 0.55;
     const knurlH = gripHeight - hexH;
@@ -570,14 +588,9 @@ function buildThreadedCap(p: PartParams, material: THREE.Material): THREE.Group 
     hex.position.z = hexH / 2;
     group.add(hex);
     if (knurlH > 0) group.add(buildKnurledCylinder(outerR, knurlH, knurl, shellMat, hexH));
-    // Cap the top of the hex (facing up) around the knurled column so the
-    // hex→knurled seam has a proper annular closure.
-    const seam = new THREE.Mesh(
-      new THREE.RingGeometry(outerR - 0.001, outerR, 6),
-      shellMat
-    );
-    seam.position.z = hexH;
-    group.add(seam);
+    // Full annulus covers both the hex's open top and the notch triangles
+    // between hex flats and the round knurled column above.
+    addSeamAnnulus(hexH, 64);
   } else if (gripType === "hex" && gripHeight > 0) {
     const hex = new THREE.Mesh(
       new THREE.CylinderGeometry(outerR, outerR, gripHeight, 6, 1, true),
@@ -607,16 +620,15 @@ function buildThreadedCap(p: PartParams, material: THREE.Material): THREE.Group 
     cy.rotation.x = Math.PI / 2;
     cy.position.z = gripHeight + smoothTopH / 2;
     group.add(cy);
-    // Transition annulus where the two profiles meet (hex-grip → round-top only).
-    if (hasHex && !smoothTopIsHex) {
-      const seam = new THREE.Mesh(
-        new THREE.RingGeometry(outerR - 0.001, outerR, 64),
-        shellMat
-      );
-      seam.position.z = gripHeight;
-      group.add(seam);
+    // Transition annulus at the grip → smooth-top junction. Covers hex-flat
+    // notches and any radius mismatch between the grip section (hex/knurled)
+    // and the round smooth top. Skipped when both sides are pure hex since
+    // they already share the same profile.
+    if (!(hasHex && smoothTopIsHex)) {
+      addSeamAnnulus(gripHeight, 64);
     }
   }
+
 
   // --- Top disc / annulus (closed end, with optional outside tool hole) ---
   const outsideHex =
