@@ -321,6 +321,62 @@ function HelixForge() {
     toast.success(`Exportado ${filename}`);
   };
 
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const doExportJSON = (scope: "all" | "selected") => {
+    const list = scope === "selected" && selected ? [selected] : parts;
+    if (list.length === 0) { toast.error("No hay piezas para exportar"); return; }
+    const payload = {
+      format: "helixforge-project",
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      parts: list.map((p) => ({
+        id: p.id, type: p.type, name: p.name,
+        params: p.params, visible: p.visible, transform: p.transform,
+      })),
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const filename = scope === "selected" && selected
+      ? `${selected.name.replace(/\s+/g, "_").toLowerCase()}.json`
+      : `helixforge_proyecto_${list.length}p.json`;
+    downloadBlob(blob, filename);
+    pushHistory(filename);
+    toast.success(`Exportado ${filename}`, { description: `${(blob.size / 1024).toFixed(1)} KB · ${list.length} pieza${list.length !== 1 ? "s" : ""}` });
+  };
+
+  const openImportDialog = () => fileInputRef.current?.click();
+
+  const handleImportFile = async (file: File, mode: "replace" | "append") => {
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      const rawParts = Array.isArray(data) ? data : data?.parts;
+      if (!Array.isArray(rawParts)) throw new Error("Formato JSON inválido: falta 'parts'");
+      const valid: PartInstance[] = [];
+      for (const rp of rawParts) {
+        if (!rp || typeof rp !== "object") continue;
+        const type = rp.type as PartType;
+        if (!type || !(type in DEFAULT_PARAMS)) continue;
+        valid.push({
+          id: crypto.randomUUID(),
+          type,
+          name: typeof rp.name === "string" ? rp.name : `Pieza ${valid.length + 1}`,
+          params: { ...DEFAULT_PARAMS[type], ...(rp.params ?? {}) },
+          visible: rp.visible !== false,
+          transform: { ...DEFAULT_TRANSFORM(), ...(rp.transform ?? {}) },
+        });
+      }
+      if (valid.length === 0) throw new Error("El archivo no contiene piezas válidas");
+      setParts((ps) => mode === "replace" ? valid : [...ps, ...valid]);
+      setSelectedId(valid[0].id);
+      toast.success(`Importadas ${valid.length} pieza${valid.length !== 1 ? "s" : ""}`, {
+        description: mode === "replace" ? "Proyecto reemplazado" : "Añadidas al proyecto",
+      });
+    } catch (err) {
+      toast.error("Error al importar", { description: err instanceof Error ? err.message : String(err) });
+    }
+  };
+
   const loadPreset = (id: string) => {
     const preset = PRESETS.find((p) => p.id === id);
     if (!preset) return;
