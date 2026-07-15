@@ -691,30 +691,8 @@ function HelixForge() {
                   </Section>
                 </>
               ) : (
-                <></>
-              )}
-              {selected && selected.type !== "note" && (
-                <></>
-              )}
-              {selected && selected.type !== "note" && (
                 <>
-                  {/* placeholder wrapper — real sections below */}
-                </>
-              )}
-              {selected && selected.type !== "note" ? (
-                <></>
-              ) : null}
-              {selected && selected.type !== "note" && false ? null : null}
-              {selected && selected.type !== "note" && (
-                <></>
-              )}
-              {(selected && selected.type !== "note") && (
-                <>
-                  {/* start non-note sections */}
-                </>
-              )}
-              {selected && selected.type !== "note" && (
-                <>
+
 
                   <Section title="Transformación">
                     <NumberControl label="Vertical (Z)" value={selected.transform.z} min={-200} max={200} step={0.5}
