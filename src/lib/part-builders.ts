@@ -689,5 +689,5 @@ export const PRESETS: Preset[] = [
   { id: "m10-150", name: "Tornillo M10×1.5", type: "screw", params: { outerDiameter: 10, innerDiameter: 8.3, pitch: 1.5, length: 40, headDiameter: 17, headHeight: 6.4 } },
   { id: "din934-m8", name: "Tuerca DIN 934 M8", type: "nut", params: { outerDiameter: 8, innerDiameter: 6.6, pitch: 1.25, nutHeight: 6.5, headDiameter: 13 } },
   { id: "auger-20", name: "Sinfín 20 mm", type: "auger", params: { outerDiameter: 20, shaftDiameter: 6, pitch: 15, length: 80, flightWidth: 7 } },
-  { id: "cap-m20", name: "Tapa M20", type: "threaded-cap", params: { outerDiameter: 20, innerDiameter: 17, pitch: 2.5, length: 12, hasHexGrip: true } },
+  { id: "cap-m20", name: "Tapa M20", type: "threaded-cap", params: { outerDiameter: 28, innerDiameter: 20, pitch: 2.5, length: 16, capInteriorHeight: 12, threadStartHeight: 1.5, gripType: "hex-knurled", gripHeight: 10, hasInternalThread: true } },
 ];
