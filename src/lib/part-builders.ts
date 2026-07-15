@@ -126,6 +126,9 @@ export const DEFAULT_PARAMS: Record<PartType, PartParams> = {
     resolution: 64,
     shaftDiameter: 10,
     flightThickness: 2,
+    filletType: "circular",
+    filletRadius: 3,
+    filletHeight: 3,
   },
   "threaded-cap": {
     outerDiameter: 24,
