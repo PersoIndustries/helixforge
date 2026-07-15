@@ -316,7 +316,7 @@ export const Viewer3D = forwardRef<ViewerHandle, Props>(function Viewer3D({ onPi
         // Transform & visibility (relative to internal centering)
         p.group.position.set(p.transform.x, p.transform.y, p.transform.z);
         // Preserve original centering by using an inner offset? Simpler: parts are built centered, translate is absolute.
-        p.group.rotation.set(0, 0, p.transform.rz);
+        p.group.rotation.set(p.transform.rx, p.transform.ry, p.transform.rz);
         p.group.visible = p.visible;
       }
     },
