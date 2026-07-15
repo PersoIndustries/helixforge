@@ -279,21 +279,32 @@ function buildInternalThread(
   length: number,
   startZ: number,
   boreRadius: number,
+  threadDepthOverride?: number,
   threadWidthOverride?: number
 ): THREE.Group {
   const group = new THREE.Group();
-  const threadDepth = (p.outerDiameter - p.innerDiameter) / 2;
-  const threadWidth = Math.min(
-    threadWidthOverride && threadWidthOverride > 0 ? threadWidthOverride : p.pitch * 0.9,
-    p.pitch * 0.95
-  );
-  // For internal thread, we sweep pointing inward
+  // Thread depth is independent of the wall thickness (outer-inner).
+  // Prefer explicit override; fall back to wireThickness; finally to a
+  // sensible default derived from the pitch (ISO-metric ~ 0.54 * pitch).
+  const fallbackDepth = p.wireThickness && p.wireThickness > 0 ? p.wireThickness : p.pitch * 0.54;
+  const rawDepth =
+    threadDepthOverride && threadDepthOverride > 0 ? threadDepthOverride : fallbackDepth;
+  // Clamp so the thread crest doesn't reach the axis.
+  const threadDepth = Math.max(0.05, Math.min(rawDepth, boreRadius * 0.85));
+
+  // Axial flight width is independent of inner/outer diameter — driven only
+  // by the metric parameters (pitch + explicit flight width).
+  const rawWidth =
+    threadWidthOverride && threadWidthOverride > 0 ? threadWidthOverride : p.pitch * 0.5;
+  const threadWidth = Math.max(0.05, Math.min(rawWidth, p.pitch * 0.95));
+
+  // Sweep pointing inward: profile center sits just outside the bore wall.
   const placementRadius = boreRadius - threadDepth / 2;
   const profile =
     p.threadForm === "acme"
       ? trapezoidThreadProfile(threadDepth, threadWidth)
       : triangleThreadProfile(threadDepth, threadWidth);
-  // Flip x to point inward
+  // Flip x so the thread crest points inward (toward the axis).
   const inwardProfile = profile.map((pt) => ({ x: -pt.x, y: pt.y }));
   const turns = length / p.pitch;
   for (let s = 0; s < p.starts; s++) {
@@ -383,8 +394,13 @@ function buildNut(p: PartParams, material: THREE.Material): THREE.Group {
   bore.rotation.x = Math.PI / 2;
   bore.position.z = height / 2;
   group.add(bore);
-  // Internal thread
-  group.add(buildInternalThread(p, material, height, 0, boreR));
+  // Internal thread — for a threaded cylinder, default depth to the wall
+  // thickness (legacy behavior) unless the user set wireThickness explicitly.
+  const cylDepth =
+    p.wireThickness && p.wireThickness > 0
+      ? p.wireThickness
+      : (p.outerDiameter - p.innerDiameter) / 2;
+  group.add(buildInternalThread(p, material, height, 0, boreR, cylDepth));
   return group;
 }
 
@@ -678,7 +694,7 @@ function buildThreadedCap(p: PartParams, material: THREE.Material): THREE.Group 
 
   // --- Internal thread on cavity wall ---
   if (hasThread && threadLen > 0) {
-    group.add(buildInternalThread(p, material, threadLen, threadStart, boreR, p.flightWidth));
+    group.add(buildInternalThread(p, material, threadLen, threadStart, boreR, p.wireThickness, p.flightWidth));
   }
   
 
