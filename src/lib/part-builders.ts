@@ -50,6 +50,7 @@ export interface PartParams {
   gripHeight?: number;
   knurlIntensity?: number; // 0..1
   toolHoleType?: "none" | "hex" | "slot";
+  toolHoleLocation?: "inside" | "outside-top";
   toolHoleSize?: number; // across-flats for hex, length for slot
   toolHoleDepth?: number;
   // Auger
