@@ -289,8 +289,8 @@ function buildInternalThread(
   const placementRadius = boreRadius - threadDepth / 2;
   const profile =
     p.threadForm === "acme"
-      ? trapezoidThreadProfile(threadDepth, p.pitch * 0.9)
-      : triangleThreadProfile(threadDepth, p.pitch * 0.9);
+      ? trapezoidThreadProfile(threadDepth, threadWidth)
+      : triangleThreadProfile(threadDepth, threadWidth);
   // Flip x to point inward
   const inwardProfile = profile.map((pt) => ({ x: -pt.x, y: pt.y }));
   const turns = length / p.pitch;
