@@ -162,6 +162,7 @@ export const DEFAULT_PARAMS: Record<PartType, PartParams> = {
     gripHeight: 12,
     knurlIntensity: 0.5,
     toolHoleType: "none",
+    toolHoleLocation: "inside",
     toolHoleSize: 4,
     toolHoleDepth: 3,
   },
