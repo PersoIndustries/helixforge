@@ -300,7 +300,7 @@ function buildInternalThread(
   const threadWidth = Math.max(0.05, Math.min(rawWidth, p.pitch * 0.95));
 
   // Sweep pointing inward: profile center sits just outside the bore wall.
-  const placementRadius = boreRadius + threadDepth / 2;
+  const placementRadius = boreRadius - threadDepth / 2;
   const profile =
     p.threadForm === "acme"
       ? trapezoidThreadProfile(threadDepth, threadWidth)
