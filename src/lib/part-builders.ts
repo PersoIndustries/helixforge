@@ -279,21 +279,33 @@ function buildInternalThread(
   length: number,
   startZ: number,
   boreRadius: number,
+  threadDepthOverride?: number,
   threadWidthOverride?: number
 ): THREE.Group {
   const group = new THREE.Group();
-  const threadDepth = (p.outerDiameter - p.innerDiameter) / 2;
-  const threadWidth = Math.min(
-    threadWidthOverride && threadWidthOverride > 0 ? threadWidthOverride : p.pitch * 0.9,
-    p.pitch * 0.95
-  );
-  // For internal thread, we sweep pointing inward
-  const placementRadius = boreRadius - threadDepth / 2;
+  // Thread depth is independent of the wall thickness (outer-inner).
+  // Prefer explicit override; fall back to wireThickness; finally to a
+  // sensible default derived from the pitch (ISO-metric ~ 0.54 * pitch).
+  const fallbackDepth = p.wireThickness && p.wireThickness > 0 ? p.wireThickness : p.pitch * 0.54;
+  const rawDepth =
+    threadDepthOverride && threadDepthOverride > 0 ? threadDepthOverride : fallbackDepth;
+  // Clamp so the thread never pierces past the outer wall or the bore center.
+  const wall = Math.max(0.1, p.outerDiameter / 2 - boreRadius);
+  const threadDepth = Math.max(0.05, Math.min(rawDepth, wall * 0.95, boreRadius * 0.9));
+
+  // Axial flight width is independent of inner/outer diameter — driven only
+  // by the metric parameters (pitch + explicit flight width).
+  const rawWidth =
+    threadWidthOverride && threadWidthOverride > 0 ? threadWidthOverride : p.pitch * 0.5;
+  const threadWidth = Math.max(0.05, Math.min(rawWidth, p.pitch * 0.95));
+
+  // Sweep pointing inward: profile center sits just outside the bore wall.
+  const placementRadius = boreRadius + threadDepth / 2;
   const profile =
     p.threadForm === "acme"
       ? trapezoidThreadProfile(threadDepth, threadWidth)
       : triangleThreadProfile(threadDepth, threadWidth);
-  // Flip x to point inward
+  // Flip x so the thread crest points inward (toward the axis).
   const inwardProfile = profile.map((pt) => ({ x: -pt.x, y: pt.y }));
   const turns = length / p.pitch;
   for (let s = 0; s < p.starts; s++) {
