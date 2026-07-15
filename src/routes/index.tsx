@@ -6,6 +6,7 @@ import {
   Grid3x3, Ruler, Scissors, Play, Sparkles, History, Layers,
   Plus, Eye, EyeOff, Copy, Trash2, Focus, GripVertical, Pencil, Check, X,
   ChevronDown, ChevronRight, Upload, FileJson, StickyNote,
+  ClipboardCopy, ClipboardPaste,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -189,6 +190,72 @@ function HelixForge() {
     ]);
     setSelectedId(newId);
   };
+
+  const CLIPBOARD_FORMAT = "helixforge-part";
+
+  const copyPartToClipboard = async (id: string) => {
+    const p = parts.find((x) => x.id === id);
+    if (!p) return;
+    const payload = {
+      format: CLIPBOARD_FORMAT,
+      version: 1,
+      part: { type: p.type, name: p.name, params: p.params, visible: p.visible, transform: p.transform },
+    };
+    const text = JSON.stringify(payload, null, 2);
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success("Pieza copiada al portapapeles", { description: p.name });
+    } catch {
+      toast.error("No se pudo copiar al portapapeles");
+    }
+  };
+
+  const pastePartFromClipboard = async (mode: "new" | "apply" = "new") => {
+    let text = "";
+    try {
+      text = await navigator.clipboard.readText();
+    } catch {
+      toast.error("No se pudo leer el portapapeles", { description: "Permite el acceso al portapapeles del navegador" });
+      return;
+    }
+    if (!text.trim()) { toast.error("El portapapeles está vacío"); return; }
+    let data: unknown;
+    try { data = JSON.parse(text); } catch { toast.error("El portapapeles no contiene JSON válido"); return; }
+    const obj = data as { format?: string; part?: { type?: PartType; name?: string; params?: Partial<PartParams>; visible?: boolean; transform?: Partial<PartTransform> }; parts?: unknown };
+    const rp = obj?.part ?? (Array.isArray(obj?.parts) ? (obj.parts as { type?: PartType; name?: string; params?: Partial<PartParams>; visible?: boolean; transform?: Partial<PartTransform> }[])[0] : undefined);
+    if (!rp || !rp.type || !(rp.type in DEFAULT_PARAMS)) {
+      toast.error("El portapapeles no contiene una pieza válida");
+      return;
+    }
+    if (mode === "apply" && selected) {
+      if (selected.type !== rp.type) {
+        toast.error("Los tipos de pieza no coinciden", { description: `Seleccionada: ${selected.type} · Portapapeles: ${rp.type}` });
+        return;
+      }
+      setParts((ps) => ps.map((p) => p.id === selected.id ? {
+        ...p,
+        params: { ...DEFAULT_PARAMS[rp.type!], ...(rp.params ?? {}) },
+        transform: { ...p.transform, ...(rp.transform ?? {}) },
+      } : p));
+      toast.success("Configuración aplicada a la pieza seleccionada");
+      return;
+    }
+    const newId = crypto.randomUUID();
+    setParts((ps) => [
+      ...ps,
+      {
+        id: newId,
+        type: rp.type!,
+        name: typeof rp.name === "string" ? `${rp.name} (pegada)` : "Pieza pegada",
+        params: { ...DEFAULT_PARAMS[rp.type!], ...(rp.params ?? {}) },
+        visible: rp.visible !== false,
+        transform: { ...DEFAULT_TRANSFORM(), ...(rp.transform ?? {}) },
+      },
+    ]);
+    setSelectedId(newId);
+    toast.success("Pieza pegada desde el portapapeles");
+  };
+
 
   const deletePart = (id: string) => {
     setParts((ps) => ps.filter((p) => p.id !== id));
@@ -546,6 +613,28 @@ function HelixForge() {
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
+                    <Button size="sm" variant="ghost" className="h-6 px-2 text-primary hover:bg-primary/10" title="Pegar pieza del portapapeles">
+                      <ClipboardPaste className="h-3.5 w-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-64">
+                    <DropdownMenuLabel>Pegar desde portapapeles</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => pastePartFromClipboard("new")}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Como pieza nueva
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => pastePartFromClipboard("apply")}
+                      disabled={!selected}
+                    >
+                      <ClipboardPaste className="mr-2 h-4 w-4" />
+                      Aplicar a la seleccionada
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
                     <Button size="sm" variant="ghost" className="h-6 px-2 text-primary hover:bg-primary/10" title="Añadir pieza">
                       <Plus className="h-3.5 w-3.5" />
                     </Button>
@@ -619,6 +708,13 @@ function HelixForge() {
                         title={p.visible ? "Ocultar" : "Mostrar"}
                       >
                         {p.visible ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); copyPartToClipboard(p.id); }}
+                        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-primary"
+                        title="Copiar configuración al portapapeles"
+                      >
+                        <ClipboardCopy className="h-3 w-3" />
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); duplicatePart(p.id); }}
