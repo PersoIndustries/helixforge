@@ -177,6 +177,33 @@ function HelixForge() {
   useEffect(() => viewerRef.current?.setClipEnabled(clipEnabled), [clipEnabled]);
   useEffect(() => viewerRef.current?.setClipPosition(clipPos), [clipPos]);
 
+  // Mesh diagnostics runner
+  useEffect(() => {
+    const v = viewerRef.current;
+    if (!v) return;
+    if (!diagOpen) {
+      v.setDiagnosticOverlay(null);
+      setDiagReport(null);
+      return;
+    }
+    const target = diagScope === "selected" && selectedId
+      ? v.getPartGroup(selectedId)
+      : v.getAssemblyGroup();
+    if (!target) { v.setDiagnosticOverlay(null); setDiagReport(null); return; }
+    // Defer to next frame so latest geometry is applied
+    const raf = requestAnimationFrame(() => {
+      try {
+        const { overlay, report } = analyzeGroup(target, diagOpts);
+        v.setDiagnosticOverlay(overlay);
+        setDiagReport(report);
+      } catch (e) {
+        console.error("Diagnóstico de malla falló", e);
+        toast.error("El diagnóstico de malla falló");
+      }
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [diagOpen, diagOpts, diagScope, selectedId, parts, statsTick]);
+
   // Part management
   const nextName = (t: PartType) => {
     const meta = partMeta(t);
