@@ -1142,6 +1142,16 @@ function HelixForge() {
                 <span className="w-10 text-right font-mono text-[10px] text-muted-foreground">{clipPos.toFixed(1)}</span>
               </div>
             )}
+            <Separator orientation="vertical" className="h-6" />
+            <Toggle
+              pressed={diagOpen}
+              onPressedChange={setDiagOpen}
+              size="sm"
+              className="h-7 gap-1 px-2 data-[state=on]:bg-destructive/20 data-[state=on]:text-destructive"
+              title="Diagnóstico de malla: detecta huecos, bordes abiertos y paredes finas"
+            >
+              <Stethoscope className="h-3.5 w-3.5" /> Diagnóstico
+            </Toggle>
             <div className="ml-auto text-[10px] text-muted-foreground">
               Clic sobre una pieza para seleccionarla · doble-clic en la lista → focus
             </div>
