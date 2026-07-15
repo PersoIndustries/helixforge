@@ -5,7 +5,7 @@ import {
   Cog, Bolt, Nut, Package, Cylinder, Waves, Download, RotateCw,
   Grid3x3, Ruler, Scissors, Play, Sparkles, History, Layers,
   Plus, Eye, EyeOff, Copy, Trash2, Focus, GripVertical, Pencil, Check, X,
-  ChevronDown, ChevronRight, Upload, FileJson,
+  ChevronDown, ChevronRight, Upload, FileJson, StickyNote,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -54,6 +54,7 @@ const PART_TYPES: { type: PartType; label: string; short: string; Icon: React.Co
   { type: "auger", label: "Sinfín de transporte", short: "Sinfín", Icon: Cog },
   { type: "threaded-cap", label: "Tapa roscada", short: "Tapa", Icon: Package },
   { type: "threaded-cylinder", label: "Cilindro roscado", short: "Cilindro", Icon: Cylinder },
+  { type: "note", label: "Nota (anotación)", short: "Nota", Icon: StickyNote },
 ];
 
 const partMeta = (t: PartType) => PART_TYPES.find((p) => p.type === t)!;
@@ -240,6 +241,7 @@ function HelixForge() {
   // Validation for selected
   const validation = useMemo(() => {
     if (!selected) return [] as { level: "warn" | "error" | "ok"; text: string }[];
+    if (selected.type === "note") return [{ level: "ok" as const, text: "Nota del proyecto (sin geometría)." }];
     const p = selected.params;
     const t = selected.type;
     const msgs: { level: "warn" | "error" | "ok"; text: string }[] = [];
@@ -654,8 +656,44 @@ function HelixForge() {
                     <div>Visibles: {parts.filter((p) => p.visible).length}</div>
                   </div>
                 </div>
+              ) : selected.type === "note" ? (
+                <>
+                  <Section title="Nota del proyecto">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-muted-foreground">Contenido</label>
+                      <textarea
+                        value={selected.params.noteText ?? ""}
+                        onChange={(e) => updateSelectedParams("noteText", e.target.value)}
+                        placeholder="Escribe aquí notas, TODOs, medidas de referencia, decisiones de diseño…"
+                        className="min-h-[220px] w-full resize-y rounded border border-border bg-input px-2 py-1.5 text-xs font-mono leading-relaxed text-foreground focus:border-primary focus:outline-none"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-muted-foreground">Color de la etiqueta</label>
+                      <div className="flex gap-1.5">
+                        {["#facc15", "#f97316", "#22d3ee", "#a78bfa", "#4ade80", "#f472b6"].map((c) => (
+                          <button
+                            key={c}
+                            onClick={() => updateSelectedParams("noteColor", c)}
+                            className={`h-6 w-6 rounded border-2 transition-transform ${(selected.params.noteColor ?? "#facc15") === c ? "border-primary scale-110" : "border-border"}`}
+                            style={{ backgroundColor: c }}
+                            title={c}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <div className="rounded border border-dashed border-border bg-panel/30 p-2 text-[10px] text-muted-foreground">
+                      Las notas no generan geometría 3D. Se guardan e importan/exportan con el proyecto en JSON.
+                    </div>
+                    <div className="text-[10px] text-muted-foreground">
+                      Caracteres: {(selected.params.noteText ?? "").length}
+                    </div>
+                  </Section>
+                </>
               ) : (
                 <>
+
+
                   <Section title="Transformación">
                     <NumberControl label="Vertical (Z)" value={selected.transform.z} min={-200} max={200} step={0.5}
                       tooltip="Desplazamiento vertical de la pieza. Úsalo para alinear, por ejemplo, un sinfín dentro de una tapa."

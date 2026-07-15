@@ -15,7 +15,8 @@ export type PartType =
   | "nut"
   | "auger"
   | "threaded-cap"
-  | "threaded-cylinder";
+  | "threaded-cylinder"
+  | "note";
 
 export interface PartParams {
   // Common
@@ -61,6 +62,9 @@ export interface PartParams {
   filletHeight?: number; // axial climb up shaft (mm); defaults to filletRadius
   // Cylinder / hollow
   hollow?: boolean;
+  // Note (fictitious, no geometry)
+  noteText?: string;
+  noteColor?: string;
 }
 
 
@@ -180,6 +184,20 @@ export const DEFAULT_PARAMS: Record<PartType, PartParams> = {
     resolution: 48,
     hollow: true,
     threadForm: "metric",
+  },
+  note: {
+    outerDiameter: 0,
+    innerDiameter: 0,
+    pitch: 1,
+    wireThickness: 0,
+    flightWidth: 0,
+    length: 0,
+    turns: 0,
+    starts: 1,
+    handed: "right",
+    resolution: 8,
+    noteText: "",
+    noteColor: "#facc15",
   },
 };
 
@@ -755,6 +773,11 @@ export function buildPart(type: PartType, params: PartParams, material: THREE.Ma
       return buildThreadedCap(params, material);
     case "threaded-cylinder":
       return buildThreadedCylinder(params, material);
+    case "note": {
+      const g = new THREE.Group();
+      g.name = "Note";
+      return g;
+    }
   }
 }
 
