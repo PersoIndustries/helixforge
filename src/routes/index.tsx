@@ -724,6 +724,9 @@ function HelixForge() {
                         <NumberControl label="Profundidad de rosca" value={p!.wireThickness} min={0.2} max={5} step={0.05}
                           tooltip="Profundidad radial de cada filete. Ajusta según el tornillo que debe alojarse."
                           onChange={(v) => updateSelectedParams("wireThickness", v)} />
+                        <NumberControl label="Ancho de pala (rosca)" value={p!.flightWidth} min={0.1} max={Math.max(0.2, p!.pitch * 0.95)} step={0.05}
+                          tooltip="Ancho axial del filete de la rosca interior. Debe ser menor que el paso."
+                          onChange={(v) => updateSelectedParams("flightWidth", v)} />
                       </Section>
 
                       <Section title="Agarradera exterior (grip)">
@@ -746,7 +749,7 @@ function HelixForge() {
                         )}
                       </Section>
 
-                      <Section title="Agujero de herramienta (base interior)">
+                      <Section title="Agujero de herramienta">
                         <Select value={p!.toolHoleType ?? "none"} onValueChange={(v) => updateSelectedParams("toolHoleType", v as "none" | "hex" | "slot")}>
                           <SelectTrigger className="h-8 bg-input text-xs"><SelectValue /></SelectTrigger>
                           <SelectContent>
@@ -757,7 +760,18 @@ function HelixForge() {
                         </Select>
                         {(p!.toolHoleType ?? "none") !== "none" && (
                           <>
-                            <NumberControl label="Tamaño" value={p!.toolHoleSize ?? 4} min={0.5} max={Math.max(1, p!.innerDiameter - 1)} step={0.1}
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-medium text-muted-foreground">Ubicación</label>
+                              <div className="flex gap-1">
+                                {(["inside", "outside-top"] as const).map((loc) => (
+                                  <button key={loc} onClick={() => updateSelectedParams("toolHoleLocation", loc)}
+                                    className={`flex-1 rounded border py-1 text-xs transition-colors ${(p!.toolHoleLocation ?? "inside") === loc ? "border-primary bg-primary/20 text-primary" : "border-border bg-input text-muted-foreground hover:border-primary/50"}`}>
+                                    {loc === "inside" ? "Base interior" : "Base exterior (top)"}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                            <NumberControl label="Tamaño" value={p!.toolHoleSize ?? 4} min={0.5} max={Math.max(1, ((p!.toolHoleLocation ?? "inside") === "outside-top" ? p!.outerDiameter : p!.innerDiameter) - 1)} step={0.1}
                               tooltip="Entrecaras (Allen) o largo (ranura)."
                               onChange={(v) => updateSelectedParams("toolHoleSize", v)} />
                             <NumberControl label="Profundidad" value={p!.toolHoleDepth ?? 3} min={0} max={Math.max(0, p!.length - (p!.capInteriorHeight ?? p!.length - 2) - 0.4)} step={0.1}
