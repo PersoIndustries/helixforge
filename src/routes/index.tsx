@@ -191,6 +191,72 @@ function HelixForge() {
     setSelectedId(newId);
   };
 
+  const CLIPBOARD_FORMAT = "helixforge-part";
+
+  const copyPartToClipboard = async (id: string) => {
+    const p = parts.find((x) => x.id === id);
+    if (!p) return;
+    const payload = {
+      format: CLIPBOARD_FORMAT,
+      version: 1,
+      part: { type: p.type, name: p.name, params: p.params, visible: p.visible, transform: p.transform },
+    };
+    const text = JSON.stringify(payload, null, 2);
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success("Pieza copiada al portapapeles", { description: p.name });
+    } catch {
+      toast.error("No se pudo copiar al portapapeles");
+    }
+  };
+
+  const pastePartFromClipboard = async (mode: "new" | "apply" = "new") => {
+    let text = "";
+    try {
+      text = await navigator.clipboard.readText();
+    } catch {
+      toast.error("No se pudo leer el portapapeles", { description: "Permite el acceso al portapapeles del navegador" });
+      return;
+    }
+    if (!text.trim()) { toast.error("El portapapeles está vacío"); return; }
+    let data: unknown;
+    try { data = JSON.parse(text); } catch { toast.error("El portapapeles no contiene JSON válido"); return; }
+    const obj = data as { format?: string; part?: { type?: PartType; name?: string; params?: Partial<PartParams>; visible?: boolean; transform?: Partial<PartTransform> }; parts?: unknown };
+    const rp = obj?.part ?? (Array.isArray(obj?.parts) ? (obj.parts as { type?: PartType; name?: string; params?: Partial<PartParams>; visible?: boolean; transform?: Partial<PartTransform> }[])[0] : undefined);
+    if (!rp || !rp.type || !(rp.type in DEFAULT_PARAMS)) {
+      toast.error("El portapapeles no contiene una pieza válida");
+      return;
+    }
+    if (mode === "apply" && selected) {
+      if (selected.type !== rp.type) {
+        toast.error("Los tipos de pieza no coinciden", { description: `Seleccionada: ${selected.type} · Portapapeles: ${rp.type}` });
+        return;
+      }
+      setParts((ps) => ps.map((p) => p.id === selected.id ? {
+        ...p,
+        params: { ...DEFAULT_PARAMS[rp.type!], ...(rp.params ?? {}) },
+        transform: { ...p.transform, ...(rp.transform ?? {}) },
+      } : p));
+      toast.success("Configuración aplicada a la pieza seleccionada");
+      return;
+    }
+    const newId = crypto.randomUUID();
+    setParts((ps) => [
+      ...ps,
+      {
+        id: newId,
+        type: rp.type!,
+        name: typeof rp.name === "string" ? `${rp.name} (pegada)` : "Pieza pegada",
+        params: { ...DEFAULT_PARAMS[rp.type!], ...(rp.params ?? {}) },
+        visible: rp.visible !== false,
+        transform: { ...DEFAULT_TRANSFORM(), ...(rp.transform ?? {}) },
+      },
+    ]);
+    setSelectedId(newId);
+    toast.success("Pieza pegada desde el portapapeles");
+  };
+
+
   const deletePart = (id: string) => {
     setParts((ps) => ps.filter((p) => p.id !== id));
     if (selectedId === id) setSelectedId(null);
