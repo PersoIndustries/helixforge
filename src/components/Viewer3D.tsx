@@ -27,6 +27,7 @@ export interface ViewerHandle {
   setAxesVisible: (b: boolean) => void;
   setClipEnabled: (b: boolean) => void;
   setClipPosition: (v: number) => void;
+  setDiagnosticOverlay: (group: THREE.Group | null) => void;
 }
 
 interface Props {
