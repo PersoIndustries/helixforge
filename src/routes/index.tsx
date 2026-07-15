@@ -54,6 +54,7 @@ const PART_TYPES: { type: PartType; label: string; short: string; Icon: React.Co
   { type: "auger", label: "Sinfín de transporte", short: "Sinfín", Icon: Cog },
   { type: "threaded-cap", label: "Tapa roscada", short: "Tapa", Icon: Package },
   { type: "threaded-cylinder", label: "Cilindro roscado", short: "Cilindro", Icon: Cylinder },
+  { type: "note", label: "Nota (anotación)", short: "Nota", Icon: StickyNote },
 ];
 
 const partMeta = (t: PartType) => PART_TYPES.find((p) => p.type === t)!;
