@@ -809,22 +809,44 @@ function buildThreadedCylinder(p: PartParams, material: THREE.Material): THREE.G
   const segments = Math.max(48, p.resolution);
 
   if (innerR > 0) {
-    // Closed hollow tube via LatheGeometry: outer wall → top annulus →
-    // inner wall → bottom annulus, all one manifold surface with
-    // consistent outward normals.
-    const points = [
-      new THREE.Vector2(innerR, 0),
-      new THREE.Vector2(rootR, 0),
-      new THREE.Vector2(rootR, p.length),
-      new THREE.Vector2(innerR, p.length),
-      new THREE.Vector2(innerR, 0),
-    ];
-    const geom = new THREE.LatheGeometry(points, segments);
-    geom.computeVertexNormals();
-    const tube = new THREE.Mesh(geom, material);
-    // LatheGeometry revolves around +Y; align tube axis to +Z.
-    tube.rotation.x = Math.PI / 2;
-    group.add(tube);
+    // Manifold hollow tube built from 4 pieces with consistent outward
+    // normals so the STL exports a valid closed body (Bambu/Cura read
+    // orientation from triangle winding).
+    // Outer wall — CylinderGeometry default winding = normals outward. ✔
+    const outer = new THREE.Mesh(
+      new THREE.CylinderGeometry(rootR, rootR, p.length, segments, 1, true),
+      material
+    );
+    outer.rotation.x = Math.PI / 2;
+    outer.position.z = p.length / 2;
+    group.add(outer);
+
+    // Inner wall — same default winding gives normals pointing OUT of
+    // the axis (into the wall). We need them pointing INTO the bore
+    // (i.e. toward the axis = outward from the solid). Flip via scale.
+    const innerGeom = new THREE.CylinderGeometry(innerR, innerR, p.length, segments, 1, true);
+    innerGeom.scale(-1, 1, 1); // mirror flips winding → normals invert
+    const inner = new THREE.Mesh(innerGeom, material);
+    inner.rotation.x = Math.PI / 2;
+    inner.position.z = p.length / 2;
+    group.add(inner);
+
+    // Top annulus — RingGeometry faces +Z by default. ✔
+    const topRing = new THREE.Mesh(
+      new THREE.RingGeometry(innerR, rootR, segments, 1),
+      material
+    );
+    topRing.position.z = p.length;
+    group.add(topRing);
+
+    // Bottom annulus — flip so it faces -Z.
+    const botRing = new THREE.Mesh(
+      new THREE.RingGeometry(innerR, rootR, segments, 1),
+      material
+    );
+    botRing.rotation.x = Math.PI; // face -Z, winding auto-flips
+    botRing.position.z = 0;
+    group.add(botRing);
   } else {
     const core = new THREE.Mesh(
       new THREE.CylinderGeometry(rootR, rootR, p.length, segments, 1, false),
