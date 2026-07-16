@@ -803,66 +803,72 @@ function buildThreadedCap(p: PartParams, material: THREE.Material): THREE.Group 
 function buildThreadedCylinder(p: PartParams, material: THREE.Material): THREE.Group {
   const group = new THREE.Group();
   const outerR = p.outerDiameter / 2;
-  // Align the visible tube radius with the thread root so both surfaces
-  // mate without gaps and the STL exports as a single manifold body.
-  const threadDepth = (p.outerDiameter - p.innerDiameter) / 2;
-  const rootR = Math.max(0.1, outerR - Math.max(0.05, threadDepth));
-  const innerR = p.hollow ? Math.min(p.innerDiameter / 2, rootR - 0.6) : 0;
   const segments = Math.max(48, p.resolution);
+  // Solid = no interior; a solid cylinder can only carry an external
+  // thread (or none). A hollow tube can carry external or internal.
+  const rawThread = p.cylinderThread ?? "external";
+  const threadMode: "none" | "external" | "internal" =
+    !p.hollow && rawThread === "internal" ? "external" : rawThread;
+
+  // Radii for the tube walls. External thread lives outside; internal
+  // thread lives on the bore wall.
+  const threadDepth = Math.max(0.05, (p.outerDiameter - p.innerDiameter) / 2);
+  // When there's an external thread, drop the visible outer wall to the
+  // thread root so the filete mates flush; otherwise the outer wall is
+  // the nominal outer diameter.
+  const outerWallR = threadMode === "external" ? Math.max(0.1, outerR - threadDepth) : outerR;
+  const innerR = p.hollow ? Math.min(p.innerDiameter / 2, outerWallR - 0.6) : 0;
 
   if (innerR > 0) {
-    // Manifold hollow tube built from 4 pieces with consistent outward
-    // normals so the STL exports a valid closed body (Bambu/Cura read
-    // orientation from triangle winding).
-    // Outer wall — CylinderGeometry default winding = normals outward. ✔
+    // Manifold hollow tube: 4 pieces with consistent outward normals.
     const outer = new THREE.Mesh(
-      new THREE.CylinderGeometry(rootR, rootR, p.length, segments, 1, true),
+      new THREE.CylinderGeometry(outerWallR, outerWallR, p.length, segments, 1, true),
       material
     );
     outer.rotation.x = Math.PI / 2;
     outer.position.z = p.length / 2;
     group.add(outer);
 
-    // Inner wall — same default winding gives normals pointing OUT of
-    // the axis (into the wall). We need them pointing INTO the bore
-    // (i.e. toward the axis = outward from the solid). Flip via scale.
     const innerGeom = new THREE.CylinderGeometry(innerR, innerR, p.length, segments, 1, true);
-    innerGeom.scale(-1, 1, 1); // mirror flips winding → normals invert
+    innerGeom.scale(-1, 1, 1);
     const inner = new THREE.Mesh(innerGeom, material);
     inner.rotation.x = Math.PI / 2;
     inner.position.z = p.length / 2;
     group.add(inner);
 
-    // Top annulus — RingGeometry faces +Z by default. ✔
     const topRing = new THREE.Mesh(
-      new THREE.RingGeometry(innerR, rootR, segments, 1),
+      new THREE.RingGeometry(innerR, outerWallR, segments, 1),
       material
     );
     topRing.position.z = p.length;
     group.add(topRing);
 
-    // Bottom annulus — flip so it faces -Z.
     const botRing = new THREE.Mesh(
-      new THREE.RingGeometry(innerR, rootR, segments, 1),
+      new THREE.RingGeometry(innerR, outerWallR, segments, 1),
       material
     );
-    botRing.rotation.x = Math.PI; // face -Z, winding auto-flips
+    botRing.rotation.x = Math.PI;
     botRing.position.z = 0;
     group.add(botRing);
   } else {
-    // Macizo: el núcleo llega hasta el diámetro exterior para que no
-    // quede un hueco visible entre el cilindro y la envolvente del
-    // filete. La rosca externa se superpone al núcleo (sin cavidad).
+    // Macizo: núcleo hasta el diámetro exterior (o hasta la raíz si hay
+    // rosca externa, para que el filete quede al ras).
+    const coreR = threadMode === "external" ? outerWallR : outerR;
     const core = new THREE.Mesh(
-      new THREE.CylinderGeometry(outerR, outerR, p.length, segments, 1, false),
+      new THREE.CylinderGeometry(coreR, coreR, p.length, segments, 1, false),
       material
     );
     core.rotation.x = Math.PI / 2;
     core.position.z = p.length / 2;
     group.add(core);
   }
-  // External thread
-  group.add(buildThreadedShaft(p, material, p.length, 0));
+
+  if (threadMode === "external") {
+    group.add(buildThreadedShaft(p, material, p.length, 0));
+  } else if (threadMode === "internal" && innerR > 0) {
+    // Internal thread on the bore wall.
+    group.add(buildInternalThread(p, material, p.length, 0, innerR, p.wireThickness, p.flightWidth));
+  }
   return group;
 }
 
