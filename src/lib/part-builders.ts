@@ -62,6 +62,7 @@ export interface PartParams {
   filletHeight?: number; // axial climb up shaft (mm); defaults to filletRadius
   // Cylinder / hollow
   hollow?: boolean;
+  cylinderThread?: "none" | "external" | "internal";
   // Note (fictitious, no geometry)
   noteText?: string;
   noteColor?: string;
