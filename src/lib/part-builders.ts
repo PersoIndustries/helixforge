@@ -848,8 +848,11 @@ function buildThreadedCylinder(p: PartParams, material: THREE.Material): THREE.G
     botRing.position.z = 0;
     group.add(botRing);
   } else {
+    // Macizo: el núcleo llega hasta el diámetro exterior para que no
+    // quede un hueco visible entre el cilindro y la envolvente del
+    // filete. La rosca externa se superpone al núcleo (sin cavidad).
     const core = new THREE.Mesh(
-      new THREE.CylinderGeometry(rootR, rootR, p.length, segments, 1, false),
+      new THREE.CylinderGeometry(outerR, outerR, p.length, segments, 1, false),
       material
     );
     core.rotation.x = Math.PI / 2;
