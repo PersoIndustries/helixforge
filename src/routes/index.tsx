@@ -1075,8 +1075,8 @@ function HelixForge() {
                         <div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">Rosca</div>
                         <div className="flex gap-1">
                           {([
-                            { v: "none", label: "Sin rosca" },
-                            { v: "external", label: "Exterior" },
+                            { v: "none", label: "Sin rosca", disabled: false },
+                            { v: "external", label: "Exterior", disabled: false },
                             { v: "internal", label: "Interior", disabled: !p!.hollow },
                           ] as const).map((opt) => {
                             const current = p!.cylinderThread ?? "external";
