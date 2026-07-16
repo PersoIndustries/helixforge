@@ -801,30 +801,33 @@ function buildThreadedCap(p: PartParams, material: THREE.Material): THREE.Group 
 function buildThreadedCylinder(p: PartParams, material: THREE.Material): THREE.Group {
   const group = new THREE.Group();
   const outerR = p.outerDiameter / 2;
-  const innerR = p.hollow ? Math.min(p.innerDiameter / 2, outerR - 0.6) : 0;
+  // Align the visible tube radius with the thread root so both surfaces
+  // mate without gaps and the STL exports as a single manifold body.
+  const threadDepth = (p.outerDiameter - p.innerDiameter) / 2;
+  const rootR = Math.max(0.1, outerR - Math.max(0.05, threadDepth));
+  const innerR = p.hollow ? Math.min(p.innerDiameter / 2, rootR - 0.6) : 0;
+  const segments = Math.max(48, p.resolution);
+
   if (innerR > 0) {
-    const tube = new THREE.Mesh(
-      new THREE.CylinderGeometry(outerR - 0.4, outerR - 0.4, p.length, 48, 1, false),
-      material
-    );
+    // Closed hollow tube via LatheGeometry: outer wall → top annulus →
+    // inner wall → bottom annulus, all one manifold surface with
+    // consistent outward normals.
+    const points = [
+      new THREE.Vector2(innerR, 0),
+      new THREE.Vector2(rootR, 0),
+      new THREE.Vector2(rootR, p.length),
+      new THREE.Vector2(innerR, p.length),
+      new THREE.Vector2(innerR, 0),
+    ];
+    const geom = new THREE.LatheGeometry(points, segments);
+    geom.computeVertexNormals();
+    const tube = new THREE.Mesh(geom, material);
+    // LatheGeometry revolves around +Y; align tube axis to +Z.
     tube.rotation.x = Math.PI / 2;
-    tube.position.z = p.length / 2;
     group.add(tube);
-    const bore = new THREE.Mesh(
-      new THREE.CylinderGeometry(innerR, innerR, p.length + 0.1, 48, 1, true),
-      new THREE.MeshStandardMaterial({
-        color: 0x0b0f14,
-        side: THREE.DoubleSide,
-        metalness: 0.2,
-        roughness: 0.9,
-      })
-    );
-    bore.rotation.x = Math.PI / 2;
-    bore.position.z = p.length / 2;
-    group.add(bore);
   } else {
     const core = new THREE.Mesh(
-      new THREE.CylinderGeometry(outerR - 0.4, outerR - 0.4, p.length, 48),
+      new THREE.CylinderGeometry(rootR, rootR, p.length, segments, 1, false),
       material
     );
     core.rotation.x = Math.PI / 2;
