@@ -185,6 +185,7 @@ export const DEFAULT_PARAMS: Record<PartType, PartParams> = {
     resolution: 48,
     hollow: true,
     threadForm: "metric",
+    cylinderThread: "external",
   },
   note: {
     outerDiameter: 0,
