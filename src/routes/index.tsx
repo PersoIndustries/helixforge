@@ -1059,14 +1059,51 @@ function HelixForge() {
                     <Section title="Cilindro">
                       <div className="flex gap-1">
                         {[true, false].map((b) => (
-                          <button key={String(b)} onClick={() => updateSelectedParams("hollow", b)}
+                          <button key={String(b)} onClick={() => {
+                            updateSelectedParams("hollow", b);
+                            // Si pasa a macizo y estaba en rosca interior, cae a "ninguna".
+                            if (!b && p!.cylinderThread === "internal") {
+                              updateSelectedParams("cylinderThread", "none");
+                            }
+                          }}
                             className={`flex-1 rounded border py-1 text-xs transition-colors ${p!.hollow === b ? "border-primary bg-primary/20 text-primary" : "border-border bg-input text-muted-foreground hover:border-primary/50"}`}>
                             {b ? "Tubo" : "Macizo"}
                           </button>
                         ))}
                       </div>
+                      <div className="mt-2">
+                        <div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">Rosca</div>
+                        <div className="flex gap-1">
+                          {([
+                            { v: "none", label: "Sin rosca" },
+                            { v: "external", label: "Exterior" },
+                            { v: "internal", label: "Interior", disabled: !p!.hollow },
+                          ] as const).map((opt) => {
+                            const current = p!.cylinderThread ?? "external";
+                            const active = current === opt.v;
+                            return (
+                              <button
+                                key={opt.v}
+                                disabled={opt.disabled}
+                                onClick={() => updateSelectedParams("cylinderThread", opt.v)}
+                                title={opt.disabled ? "Solo disponible en modo Tubo" : undefined}
+                                className={`flex-1 rounded border py-1 text-xs transition-colors ${
+                                  active
+                                    ? "border-primary bg-primary/20 text-primary"
+                                    : opt.disabled
+                                      ? "cursor-not-allowed border-border/50 bg-input/40 text-muted-foreground/40"
+                                      : "border-border bg-input text-muted-foreground hover:border-primary/50"
+                                }`}
+                              >
+                                {opt.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
                     </Section>
                   )}
+
 
                   {t!.includes("spring") && (
                     <Section title="Extremos del muelle">
