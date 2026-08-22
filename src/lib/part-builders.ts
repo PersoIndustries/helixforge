@@ -16,6 +16,7 @@ export type PartType =
   | "auger"
   | "threaded-cap"
   | "threaded-cylinder"
+  | "tube"
   | "note";
 
 export interface PartParams {
@@ -63,6 +64,9 @@ export interface PartParams {
   // Cylinder / hollow
   hollow?: boolean;
   cylinderThread?: "none" | "external" | "internal";
+  // Tube (hollow conical frustum)
+  tubeDiameterA?: number; // diámetro exterior del extremo superior (+Z)
+  tubeDiameterB?: number; // diámetro exterior del extremo inferior (Z = 0)
   // Note (fictitious, no geometry)
   noteText?: string;
   noteColor?: string;
@@ -186,6 +190,21 @@ export const DEFAULT_PARAMS: Record<PartType, PartParams> = {
     hollow: true,
     threadForm: "metric",
     cylinderThread: "external",
+  },
+  tube: {
+    outerDiameter: 30,
+    innerDiameter: 26,
+    pitch: 1,
+    wireThickness: 0,
+    flightWidth: 0,
+    length: 50,
+    turns: 0,
+    starts: 1,
+    handed: "right",
+    resolution: 64,
+    tubeDiameterA: 30,
+    tubeDiameterB: 20,
+    wallThickness: 2,
   },
   note: {
     outerDiameter: 0,
