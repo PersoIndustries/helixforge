@@ -869,6 +869,9 @@ function HelixForge() {
                     </Button>
                   </Section>
 
+                  {t !== "tube" && (
+                  <>
+
                   <Section title="Dimensiones principales">
                     <NumberControl label="Diámetro exterior" value={p!.outerDiameter} min={1} max={200} step={0.1} tooltip="Diámetro nominal exterior de la pieza." onChange={(v) => updateSelectedParams("outerDiameter", v)} />
                     <NumberControl label="Diámetro interior" value={p!.innerDiameter} min={0} max={200} step={0.1} tooltip="Diámetro de raíz o hueco interior." onChange={(v) => updateSelectedParams("innerDiameter", v)} />
@@ -904,6 +907,29 @@ function HelixForge() {
                       </div>
                     </div>
                   </Section>
+
+                  </>
+                  )}
+
+                  {t === "tube" && (
+                    <Section title="Tubo">
+                      <NumberControl label="Diámetro A (superior)" value={p!.tubeDiameterA ?? 30} min={2} max={300} step={0.5}
+                        tooltip="Diámetro exterior del extremo superior del tubo."
+                        onChange={(v) => updateSelectedParams("tubeDiameterA", v)} />
+                      <NumberControl label="Diámetro B (inferior)" value={p!.tubeDiameterB ?? 20} min={2} max={300} step={0.5}
+                        tooltip="Diámetro exterior del extremo inferior. Igual a A si quieres un tubo recto."
+                        onChange={(v) => updateSelectedParams("tubeDiameterB", v)} />
+                      <NumberControl label="Grosor de pared" value={p!.wallThickness ?? 2} min={0.2} max={40} step={0.1}
+                        tooltip="Espesor de la pared. El tubo es hueco y ambos extremos quedan cerrados por un anillo sólido."
+                        onChange={(v) => updateSelectedParams("wallThickness", v)} />
+                      <NumberControl label="Longitud" value={p!.length} min={1} max={500} step={0.5}
+                        tooltip="Longitud axial del tubo."
+                        onChange={(v) => updateSelectedParams("length", v)} />
+                      <div className="rounded border border-dashed border-border bg-panel/30 p-2 text-[10px] text-muted-foreground">
+                        Tubo hueco con superficie interior y exterior sólidas (manifold), listo para impresión 3D.
+                      </div>
+                    </Section>
+                  )}
 
                   {(t === "screw" || t === "nut" || t === "threaded-cap" || t === "threaded-cylinder") && (
                     <Section title="Rosca">
