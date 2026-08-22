@@ -16,6 +16,7 @@ export type PartType =
   | "auger"
   | "threaded-cap"
   | "threaded-cylinder"
+  | "tube"
   | "note";
 
 export interface PartParams {
@@ -63,6 +64,9 @@ export interface PartParams {
   // Cylinder / hollow
   hollow?: boolean;
   cylinderThread?: "none" | "external" | "internal";
+  // Tube (hollow conical frustum)
+  tubeDiameterA?: number; // diámetro exterior del extremo superior (+Z)
+  tubeDiameterB?: number; // diámetro exterior del extremo inferior (Z = 0)
   // Note (fictitious, no geometry)
   noteText?: string;
   noteColor?: string;
@@ -186,6 +190,21 @@ export const DEFAULT_PARAMS: Record<PartType, PartParams> = {
     hollow: true,
     threadForm: "metric",
     cylinderThread: "external",
+  },
+  tube: {
+    outerDiameter: 30,
+    innerDiameter: 26,
+    pitch: 1,
+    wireThickness: 0,
+    flightWidth: 0,
+    length: 50,
+    turns: 0,
+    starts: 1,
+    handed: "right",
+    resolution: 64,
+    tubeDiameterA: 30,
+    tubeDiameterB: 20,
+    wallThickness: 2,
   },
   note: {
     outerDiameter: 0,
@@ -872,6 +891,51 @@ function buildThreadedCylinder(p: PartParams, material: THREE.Material): THREE.G
   return group;
 }
 
+/* Tubo hueco (posiblemente cónico): pared exterior, pared interior con
+   normales invertidas y anillos de cierre en ambos extremos. Ambos lados
+   quedan con superficie sólida y la malla es manifold (apto para impresión). */
+function buildTube(p: PartParams, material: THREE.Material): THREE.Group {
+  const group = new THREE.Group();
+  group.name = "Tube";
+  const segments = Math.max(48, p.resolution * 2);
+  const L = Math.max(1, p.length);
+  const rTopOut = Math.max(1, (p.tubeDiameterA ?? 30) / 2);
+  const rBotOut = Math.max(1, (p.tubeDiameterB ?? 20) / 2);
+  const t = Math.max(0.2, Math.min(p.wallThickness ?? 2, Math.min(rTopOut, rBotOut) - 0.2));
+  const rTopIn = rTopOut - t;
+  const rBotIn = rBotOut - t;
+
+  // Pared exterior (normales hacia fuera)
+  const outer = new THREE.Mesh(
+    new THREE.CylinderGeometry(rTopOut, rBotOut, L, segments, 1, true),
+    material
+  );
+  outer.rotation.x = Math.PI / 2;
+  outer.position.z = L / 2;
+  group.add(outer);
+
+  // Pared interior: se invierte con scale(-1,1,1) para que las normales
+  // apunten hacia el hueco interior.
+  const innerGeom = new THREE.CylinderGeometry(rTopIn, rBotIn, L, segments, 1, true);
+  innerGeom.scale(-1, 1, 1);
+  const inner = new THREE.Mesh(innerGeom, material);
+  inner.rotation.x = Math.PI / 2;
+  inner.position.z = L / 2;
+  group.add(inner);
+
+  // Anillos de cierre en ambos extremos
+  const topRing = new THREE.Mesh(new THREE.RingGeometry(rTopIn, rTopOut, segments, 1), material);
+  topRing.position.z = L;
+  group.add(topRing);
+
+  const botRing = new THREE.Mesh(new THREE.RingGeometry(rBotIn, rBotOut, segments, 1), material);
+  botRing.rotation.x = Math.PI;
+  botRing.position.z = 0;
+  group.add(botRing);
+
+  return group;
+}
+
 export function buildPart(type: PartType, params: PartParams, material: THREE.Material): THREE.Group {
   switch (type) {
     case "compression-spring":
@@ -887,6 +951,8 @@ export function buildPart(type: PartType, params: PartParams, material: THREE.Ma
       return buildThreadedCap(params, material);
     case "threaded-cylinder":
       return buildThreadedCylinder(params, material);
+    case "tube":
+      return buildTube(params, material);
     case "note": {
       const g = new THREE.Group();
       g.name = "Note";
@@ -910,4 +976,5 @@ export const PRESETS: Preset[] = [
   { id: "din934-m8", name: "Tuerca DIN 934 M8", type: "nut", params: { outerDiameter: 8, innerDiameter: 6.6, pitch: 1.25, nutHeight: 6.5, headDiameter: 13 } },
   { id: "auger-20", name: "Sinfín 20 mm", type: "auger", params: { outerDiameter: 20, shaftDiameter: 6, pitch: 15, length: 80, flightWidth: 7 } },
   { id: "cap-m20", name: "Tapa M20", type: "threaded-cap", params: { outerDiameter: 28, innerDiameter: 20, pitch: 2.5, length: 16, capInteriorHeight: 12, threadStartHeight: 1.5, gripType: "hex-knurled", gripHeight: 10, hasInternalThread: true } },
+  { id: "tube-red", name: "Tubo reductor 30→20", type: "tube", params: {} },
 ];

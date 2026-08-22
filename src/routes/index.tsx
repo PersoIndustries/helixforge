@@ -6,7 +6,7 @@ import {
   Grid3x3, Ruler, Scissors, Play, Sparkles, History, Layers,
   Plus, Eye, EyeOff, Copy, Trash2, Focus, GripVertical, Pencil, Check, X,
   ChevronDown, ChevronRight, Upload, FileJson, StickyNote,
-  ClipboardCopy, ClipboardPaste, Stethoscope, AlertTriangle,
+  ClipboardCopy, ClipboardPaste, Stethoscope, AlertTriangle, Cone,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -56,6 +56,7 @@ const PART_TYPES: { type: PartType; label: string; short: string; Icon: React.Co
   { type: "auger", label: "Sinfín de transporte", short: "Sinfín", Icon: Cog },
   { type: "threaded-cap", label: "Tapa roscada", short: "Tapa", Icon: Package },
   { type: "threaded-cylinder", label: "Cilindro roscado", short: "Cilindro", Icon: Cylinder },
+  { type: "tube", label: "Tubo / Cono hueco", short: "Tubo", Icon: Cone },
   { type: "note", label: "Nota (anotación)", short: "Nota", Icon: StickyNote },
 ];
 
@@ -353,8 +354,17 @@ function HelixForge() {
     const p = selected.params;
     const t = selected.type;
     const msgs: { level: "warn" | "error" | "ok"; text: string }[] = [];
-    if (p.innerDiameter >= p.outerDiameter) msgs.push({ level: "error", text: "El diámetro interior debe ser menor que el exterior." });
-    if (p.pitch <= 0) msgs.push({ level: "error", text: "El paso debe ser positivo." });
+    if (t !== "tube" && p.innerDiameter >= p.outerDiameter) msgs.push({ level: "error", text: "El diámetro interior debe ser menor que el exterior." });
+    if (t !== "tube" && p.pitch <= 0) msgs.push({ level: "error", text: "El paso debe ser positivo." });
+    if (t === "tube") {
+      const dA = p.tubeDiameterA ?? 0;
+      const dB = p.tubeDiameterB ?? 0;
+      const wall = p.wallThickness ?? 0;
+      if (dA <= 0 || dB <= 0) msgs.push({ level: "error", text: "Los diámetros A y B deben ser positivos." });
+      if (wall <= 0) msgs.push({ level: "error", text: "El grosor de pared debe ser positivo." });
+      if (wall * 2 >= Math.min(dA, dB)) msgs.push({ level: "error", text: "El grosor es demasiado grande: no queda hueco interior en el extremo menor." });
+      if (wall * 2 >= Math.min(dA, dB) * 0.7) msgs.push({ level: "warn", text: "Pared muy gruesa respecto al diámetro menor: el hueco interior es muy estrecho." });
+    }
     if (p.pitch < p.wireThickness && t.includes("spring")) msgs.push({ level: "warn", text: "Paso menor que grosor: las espiras se solapan." });
     if (t === "screw" && (p.threadLength ?? 0) > p.length) msgs.push({ level: "warn", text: "La longitud de rosca supera la del tornillo." });
     if (p.resolution < 24) msgs.push({ level: "warn", text: "Resolución baja: la rosca puede verse facetada." });
@@ -384,6 +394,9 @@ function HelixForge() {
   }, [statsTick, selectedId, selected]);
 
   const buildFileName = (p: PartInstance, ext: string) => {
+    if (p.type === "tube") {
+      return `tube_dA${p.params.tubeDiameterA}_dB${p.params.tubeDiameterB}_t${p.params.wallThickness}_l${p.params.length}.${ext}`;
+    }
     const parts = [p.type.replace(/-/g, "_"), `d${p.params.outerDiameter}`, `p${p.params.pitch}`, `s${p.params.starts}`, `l${p.params.length}`];
     return `${parts.join("_")}.${ext}`;
   };
@@ -856,6 +869,9 @@ function HelixForge() {
                     </Button>
                   </Section>
 
+                  {t !== "tube" && (
+                  <>
+
                   <Section title="Dimensiones principales">
                     <NumberControl label="Diámetro exterior" value={p!.outerDiameter} min={1} max={200} step={0.1} tooltip="Diámetro nominal exterior de la pieza." onChange={(v) => updateSelectedParams("outerDiameter", v)} />
                     <NumberControl label="Diámetro interior" value={p!.innerDiameter} min={0} max={200} step={0.1} tooltip="Diámetro de raíz o hueco interior." onChange={(v) => updateSelectedParams("innerDiameter", v)} />
@@ -891,6 +907,29 @@ function HelixForge() {
                       </div>
                     </div>
                   </Section>
+
+                  </>
+                  )}
+
+                  {t === "tube" && (
+                    <Section title="Tubo">
+                      <NumberControl label="Diámetro A (superior)" value={p!.tubeDiameterA ?? 30} min={2} max={300} step={0.5}
+                        tooltip="Diámetro exterior del extremo superior del tubo."
+                        onChange={(v) => updateSelectedParams("tubeDiameterA", v)} />
+                      <NumberControl label="Diámetro B (inferior)" value={p!.tubeDiameterB ?? 20} min={2} max={300} step={0.5}
+                        tooltip="Diámetro exterior del extremo inferior. Igual a A si quieres un tubo recto."
+                        onChange={(v) => updateSelectedParams("tubeDiameterB", v)} />
+                      <NumberControl label="Grosor de pared" value={p!.wallThickness ?? 2} min={0.2} max={40} step={0.1}
+                        tooltip="Espesor de la pared. El tubo es hueco y ambos extremos quedan cerrados por un anillo sólido."
+                        onChange={(v) => updateSelectedParams("wallThickness", v)} />
+                      <NumberControl label="Longitud" value={p!.length} min={1} max={500} step={0.5}
+                        tooltip="Longitud axial del tubo."
+                        onChange={(v) => updateSelectedParams("length", v)} />
+                      <div className="rounded border border-dashed border-border bg-panel/30 p-2 text-[10px] text-muted-foreground">
+                        Tubo hueco con superficie interior y exterior sólidas (manifold), listo para impresión 3D.
+                      </div>
+                    </Section>
+                  )}
 
                   {(t === "screw" || t === "nut" || t === "threaded-cap" || t === "threaded-cylinder") && (
                     <Section title="Rosca">
