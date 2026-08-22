@@ -6,7 +6,7 @@ import {
   Grid3x3, Ruler, Scissors, Play, Sparkles, History, Layers,
   Plus, Eye, EyeOff, Copy, Trash2, Focus, GripVertical, Pencil, Check, X,
   ChevronDown, ChevronRight, Upload, FileJson, StickyNote,
-  ClipboardCopy, ClipboardPaste, Stethoscope, AlertTriangle,
+  ClipboardCopy, ClipboardPaste, Stethoscope, AlertTriangle, Cone,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -56,6 +56,7 @@ const PART_TYPES: { type: PartType; label: string; short: string; Icon: React.Co
   { type: "auger", label: "Sinfín de transporte", short: "Sinfín", Icon: Cog },
   { type: "threaded-cap", label: "Tapa roscada", short: "Tapa", Icon: Package },
   { type: "threaded-cylinder", label: "Cilindro roscado", short: "Cilindro", Icon: Cylinder },
+  { type: "tube", label: "Tubo / Cono hueco", short: "Tubo", Icon: Cone },
   { type: "note", label: "Nota (anotación)", short: "Nota", Icon: StickyNote },
 ];
 
@@ -353,8 +354,17 @@ function HelixForge() {
     const p = selected.params;
     const t = selected.type;
     const msgs: { level: "warn" | "error" | "ok"; text: string }[] = [];
-    if (p.innerDiameter >= p.outerDiameter) msgs.push({ level: "error", text: "El diámetro interior debe ser menor que el exterior." });
-    if (p.pitch <= 0) msgs.push({ level: "error", text: "El paso debe ser positivo." });
+    if (t !== "tube" && p.innerDiameter >= p.outerDiameter) msgs.push({ level: "error", text: "El diámetro interior debe ser menor que el exterior." });
+    if (t !== "tube" && p.pitch <= 0) msgs.push({ level: "error", text: "El paso debe ser positivo." });
+    if (t === "tube") {
+      const dA = p.tubeDiameterA ?? 0;
+      const dB = p.tubeDiameterB ?? 0;
+      const wall = p.wallThickness ?? 0;
+      if (dA <= 0 || dB <= 0) msgs.push({ level: "error", text: "Los diámetros A y B deben ser positivos." });
+      if (wall <= 0) msgs.push({ level: "error", text: "El grosor de pared debe ser positivo." });
+      if (wall * 2 >= Math.min(dA, dB)) msgs.push({ level: "error", text: "El grosor es demasiado grande: no queda hueco interior en el extremo menor." });
+      if (wall * 2 >= Math.min(dA, dB) * 0.7) msgs.push({ level: "warn", text: "Pared muy gruesa respecto al diámetro menor: el hueco interior es muy estrecho." });
+    }
     if (p.pitch < p.wireThickness && t.includes("spring")) msgs.push({ level: "warn", text: "Paso menor que grosor: las espiras se solapan." });
     if (t === "screw" && (p.threadLength ?? 0) > p.length) msgs.push({ level: "warn", text: "La longitud de rosca supera la del tornillo." });
     if (p.resolution < 24) msgs.push({ level: "warn", text: "Resolución baja: la rosca puede verse facetada." });
@@ -384,6 +394,9 @@ function HelixForge() {
   }, [statsTick, selectedId, selected]);
 
   const buildFileName = (p: PartInstance, ext: string) => {
+    if (p.type === "tube") {
+      return `tube_dA${p.params.tubeDiameterA}_dB${p.params.tubeDiameterB}_t${p.params.wallThickness}_l${p.params.length}.${ext}`;
+    }
     const parts = [p.type.replace(/-/g, "_"), `d${p.params.outerDiameter}`, `p${p.params.pitch}`, `s${p.params.starts}`, `l${p.params.length}`];
     return `${parts.join("_")}.${ext}`;
   };
