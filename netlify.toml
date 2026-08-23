@@ -1,0 +1,29 @@
+# HelixForge — Netlify deployment
+# TanStack Start runs on Nitro. Setting NITRO_PRESET=netlify makes Nitro emit
+# a Netlify serverless function (SSR) under `.netlify/functions-internal/` plus
+# the static client bundle + auto-generated `_redirects`/`_headers` in `dist/`.
+#
+# Note: the Lovable sandbox build is unaffected — it forces the Cloudflare preset
+# internally, so the in-app Publish button keeps deploying to the .lovable.app URL.
+# This config only takes effect when Netlify builds the project from its own CI.
+
+[build]
+  command = "bun run build"
+  publish = "dist"
+
+[build.environment]
+  # Force the Nitro Netlify SSR preset (serverless functions + static assets).
+  NITRO_PRESET = "netlify"
+  # React 19 / Vite 8 require Node 20+.
+  NODE_VERSION = "20"
+  # Bun is auto-detected from bun.lock for the install step; pin the version for
+  # reproducible installs that respect bunfig.toml (incl. the 24h supply-chain guard).
+  BUN_VERSION = "1.2"
+
+# Nitro's netlify preset registers a `/*` function with preferStatic=true, so
+# static assets in dist/ are served directly and every other route hits SSR.
+# It also writes `dist/_redirects` automatically, so no manual redirects are needed.
+
+[functions]
+  # Nitro emits functions here; declaring it makes Netlify's detection explicit.
+  directory = ".netlify/functions-internal"
