@@ -1249,24 +1249,28 @@ function HelixForge() {
           <div className="mb-2 flex flex-wrap items-center gap-2 rounded-md border border-border bg-panel/60 p-2 text-xs">
             <div className="flex items-center gap-1">
               {(["front", "side", "top", "iso"] as const).map((v, i) => (
-                <Button key={v} variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => viewerRef.current?.setView(v)}>
-                  {["Frontal", "Lateral", "Superior", "Iso"][i]}
+                <Button key={v} variant="ghost" size="sm" className="h-7 w-7 p-0" title={["Vista frontal", "Vista lateral", "Vista superior", "Vista isométrica"][i]} onClick={() => viewerRef.current?.setView(v)}>
+                  {i === 0 && <RectangleVertical className="h-3.5 w-3.5" />}
+                  {i === 1 && <RectangleVertical className="h-3.5 w-3.5 rotate-90" />}
+                  {i === 2 && <RectangleHorizontal className="h-3.5 w-3.5" />}
+                  {i === 3 && <Box className="h-3.5 w-3.5" />}
                 </Button>
               ))}
-              <Button variant="secondary" size="sm" className="h-7 gap-1 px-2 text-xs" onClick={() => viewerRef.current?.setView("fit")}>
-                <Focus className="h-3 w-3" /> Ajustar todo
+              <Button variant="secondary" size="sm" className="h-7 w-7 p-0" title="Ajustar vista a todo el conjunto" onClick={() => viewerRef.current?.setView("fit")}>
+                <Scan className="h-3.5 w-3.5" />
               </Button>
               {selected && (
-                <Button variant="secondary" size="sm" className="h-7 gap-1 px-2 text-xs" onClick={() => viewerRef.current?.focusOn(selected.id)}>
-                  <Focus className="h-3 w-3" /> Focus pieza
+                <Button variant="secondary" size="sm" className="h-7 w-7 p-0" title="Centrar vista en la pieza seleccionada" onClick={() => viewerRef.current?.focusOn(selected.id)}>
+                  <Focus className="h-3.5 w-3.5" />
                 </Button>
               )}
             </div>
             <Separator orientation="vertical" className="h-6" />
             <div className="flex items-center gap-1">
-              {(["solid", "wireframe", "transparent"] as const).map((m) => (
-                <Toggle key={m} pressed={viewMode === m} onPressedChange={() => setViewMode(m)} size="sm" className="h-7 px-2 text-xs data-[state=on]:bg-primary/20 data-[state=on]:text-primary">
-                  {m === "solid" ? "Sólido" : m === "wireframe" ? "Wire" : "Trans"}
+              {(["solid", "wireframe", "transparent"] as const).map((m, i) => (
+                <Toggle key={m} pressed={viewMode === m} onPressedChange={() => setViewMode(m)} size="sm" className="h-7 w-7 p-0 data-[state=on]:bg-primary/20 data-[state=on]:text-primary"
+                  title={["Modo sólido", "Modo alambre", "Modo transparente"][i]}>
+                  {m === "solid" ? <Box className="h-3.5 w-3.5" /> : m === "wireframe" ? <Frame className="h-3.5 w-3.5" /> : <CircleDashed className="h-3.5 w-3.5" />}
                 </Toggle>
               ))}
             </div>
