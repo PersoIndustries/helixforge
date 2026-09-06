@@ -17,6 +17,7 @@ export type PartType =
   | "threaded-cap"
   | "threaded-cylinder"
   | "tube"
+  | "clevis"
   | "note";
 
 export interface PartParams {
@@ -67,6 +68,18 @@ export interface PartParams {
   // Tube (hollow conical frustum)
   tubeDiameterA?: number; // diámetro exterior del extremo superior (+Z)
   tubeDiameterB?: number; // diámetro exterior del extremo inferior (Z = 0)
+  // Clevis / orejas de unión
+  clevisStyle?: "fork" | "single" | "pin";
+  lugThickness?: number;     // espesor de cada oreja
+  lugWidth?: number;         // ancho de la oreja (diámetro del ojo)
+  armLength?: number;        // distancia base -> centro del agujero
+  pinDiameter?: number;      // diámetro del agujero / pasador
+  clevisGap?: number;        // separación interior entre orejas (fork)
+  baseWidth?: number;
+  baseDepth?: number;
+  baseThickness?: number;
+  baseHoles?: 0 | 2 | 4;
+  baseHoleDiameter?: number;
   // Note (fictitious, no geometry)
   noteText?: string;
   noteColor?: string;
@@ -205,6 +218,29 @@ export const DEFAULT_PARAMS: Record<PartType, PartParams> = {
     tubeDiameterA: 30,
     tubeDiameterB: 20,
     wallThickness: 2,
+  },
+  clevis: {
+    outerDiameter: 20,
+    innerDiameter: 8,
+    pitch: 1,
+    wireThickness: 0,
+    flightWidth: 0,
+    length: 40,
+    turns: 0,
+    starts: 1,
+    handed: "right",
+    resolution: 64,
+    clevisStyle: "fork",
+    lugThickness: 6,
+    lugWidth: 20,
+    armLength: 28,
+    pinDiameter: 8,
+    clevisGap: 10,
+    baseWidth: 34,
+    baseDepth: 24,
+    baseThickness: 6,
+    baseHoles: 2,
+    baseHoleDiameter: 5,
   },
   note: {
     outerDiameter: 0,
@@ -936,6 +972,117 @@ function buildTube(p: PartParams, material: THREE.Material): THREE.Group {
   return group;
 }
 
+
+/* Clevis / orejas de unión: base plana + una o dos orejas con ojo pasante.
+   Cada oreja es una extrusión sólida (manifold) de un perfil rectangular
+   rematado en semicírculo con un agujero circular pasante. */
+function lugPlateGeometry(armLength: number, width: number, thickness: number, holeD: number) {
+  const w = Math.max(2, width);
+  const r = w / 2;
+  const a = Math.max(r + 0.5, armLength);
+  const shape = new THREE.Shape();
+  shape.moveTo(0, -r);
+  shape.lineTo(a, -r);
+  shape.absarc(a, 0, r, -Math.PI / 2, Math.PI / 2, false);
+  shape.lineTo(0, r);
+  shape.closePath();
+  const hd = Math.max(0, Math.min(holeD, w - 1.6));
+  if (hd > 0.2) {
+    const hole = new THREE.Path();
+    hole.absarc(a, 0, hd / 2, 0, Math.PI * 2, true);
+    shape.holes.push(hole);
+  }
+  const geom = new THREE.ExtrudeGeometry(shape, {
+    depth: Math.max(0.5, thickness),
+    bevelEnabled: false,
+    curveSegments: 48,
+  });
+  // local x (altura del brazo) -> Z, local y -> -Y, local z (espesor) -> X
+  const m = new THREE.Matrix4().makeBasis(
+    new THREE.Vector3(0, 0, 1),
+    new THREE.Vector3(0, -1, 0),
+    new THREE.Vector3(1, 0, 0)
+  );
+  geom.applyMatrix4(m);
+  geom.computeVertexNormals();
+  return geom;
+}
+
+function platePlateGeometry(width: number, depth: number, thickness: number, holes: number, holeD: number) {
+  const w = Math.max(2, width), d = Math.max(2, depth), t = Math.max(0.5, thickness);
+  const shape = new THREE.Shape();
+  shape.moveTo(-w / 2, -d / 2);
+  shape.lineTo(w / 2, -d / 2);
+  shape.lineTo(w / 2, d / 2);
+  shape.lineTo(-w / 2, d / 2);
+  shape.closePath();
+  const hd = Math.max(0, Math.min(holeD, Math.min(w, d) / 4));
+  if (holes > 0 && hd > 0.2) {
+    const margin = hd * 0.8 + 1.5;
+    const xs = [-w / 2 + margin, w / 2 - margin];
+    const ys = holes >= 4 ? [-d / 2 + margin, d / 2 - margin] : [0];
+    for (const x of xs) for (const y of ys) {
+      const h = new THREE.Path();
+      h.absarc(x, y, hd / 2, 0, Math.PI * 2, true);
+      shape.holes.push(h);
+    }
+  }
+  const geom = new THREE.ExtrudeGeometry(shape, { depth: t, bevelEnabled: false, curveSegments: 32 });
+  geom.computeVertexNormals();
+  return geom;
+}
+
+function buildClevis(p: PartParams, material: THREE.Material): THREE.Group {
+  const group = new THREE.Group();
+  group.name = "Clevis";
+  const style = p.clevisStyle ?? "fork";
+  const t = Math.max(0.5, p.lugThickness ?? 6);
+  const w = Math.max(2, p.lugWidth ?? 20);
+  const arm = Math.max(w / 2 + 0.5, p.armLength ?? 28);
+  const pinD = Math.max(0.5, p.pinDiameter ?? 8);
+  const gap = Math.max(0.5, p.clevisGap ?? 10);
+  const bt = Math.max(0.5, p.baseThickness ?? 6);
+
+  if (style === "pin") {
+    const L = Math.max(2, gap + 2 * t + 2);
+    const pin = new THREE.Mesh(
+      new THREE.CylinderGeometry(pinD / 2 - 0.1, pinD / 2 - 0.1, L, Math.max(32, p.resolution)),
+      material
+    );
+    pin.rotation.z = Math.PI / 2; // eje a lo largo de X
+    pin.position.set(0, 0, pinD / 2);
+    group.add(pin);
+    const headR = pinD * 0.8;
+    const head = new THREE.Mesh(new THREE.CylinderGeometry(headR, headR, Math.max(1, pinD * 0.35), 32), material);
+    head.rotation.z = Math.PI / 2;
+    head.position.set(-L / 2 - Math.max(1, pinD * 0.35) / 2, 0, pinD / 2);
+    group.add(head);
+    return group;
+  }
+
+  const bw = Math.max(2, p.baseWidth ?? (style === "fork" ? gap + 2 * t + 8 : w + 8));
+  const bd = Math.max(2, p.baseDepth ?? w + 4);
+  const base = new THREE.Mesh(
+    platePlateGeometry(bw, bd, bt, p.baseHoles ?? 0, p.baseHoleDiameter ?? 5),
+    material
+  );
+  group.add(base);
+
+  const lugGeom = () => lugPlateGeometry(arm, w, t, pinD);
+  if (style === "fork") {
+    for (const s of [-1, 1]) {
+      const lug = new THREE.Mesh(lugGeom(), material);
+      lug.position.set(s * (gap / 2) + (s < 0 ? -t : 0), 0, bt);
+      group.add(lug);
+    }
+  } else {
+    const lug = new THREE.Mesh(lugGeom(), material);
+    lug.position.set(-t / 2, 0, bt);
+    group.add(lug);
+  }
+  return group;
+}
+
 export function buildPart(type: PartType, params: PartParams, material: THREE.Material): THREE.Group {
   switch (type) {
     case "compression-spring":
@@ -953,6 +1100,8 @@ export function buildPart(type: PartType, params: PartParams, material: THREE.Ma
       return buildThreadedCylinder(params, material);
     case "tube":
       return buildTube(params, material);
+    case "clevis":
+      return buildClevis(params, material);
     case "note": {
       const g = new THREE.Group();
       g.name = "Note";
@@ -976,5 +1125,8 @@ export const PRESETS: Preset[] = [
   { id: "din934-m8", name: "Tuerca DIN 934 M8", type: "nut", params: { outerDiameter: 8, innerDiameter: 6.6, pitch: 1.25, nutHeight: 6.5, headDiameter: 13 } },
   { id: "auger-20", name: "Sinfín 20 mm", type: "auger", params: { outerDiameter: 20, shaftDiameter: 6, pitch: 15, length: 80, flightWidth: 7 } },
   { id: "cap-m20", name: "Tapa M20", type: "threaded-cap", params: { outerDiameter: 28, innerDiameter: 20, pitch: 2.5, length: 16, capInteriorHeight: 12, threadStartHeight: 1.5, gripType: "hex-knurled", gripHeight: 10, hasInternalThread: true } },
+  { id: "clevis-fork", name: "Clevis horquilla Ø8", type: "clevis", params: {} },
+  { id: "clevis-tongue", name: "Oreja simple Ø8", type: "clevis", params: { clevisStyle: "single" } },
+  { id: "clevis-pin", name: "Pasador Ø8", type: "clevis", params: { clevisStyle: "pin" } },
   { id: "tube-red", name: "Tubo reductor 30→20", type: "tube", params: {} },
 ];
