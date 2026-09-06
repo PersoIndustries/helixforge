@@ -6,7 +6,7 @@ import {
   Grid3x3, Ruler, Scissors, Play, Sparkles, History, Layers,
   Plus, Eye, EyeOff, Copy, Trash2, Focus, GripVertical, Pencil, Check, X,
   ChevronDown, ChevronRight, Upload, FileJson, StickyNote,
-  ClipboardCopy, ClipboardPaste, Stethoscope, AlertTriangle, Cone,
+  ClipboardCopy, ClipboardPaste, Stethoscope, AlertTriangle, Cone, Link2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -57,6 +57,7 @@ const PART_TYPES: { type: PartType; label: string; short: string; Icon: React.Co
   { type: "threaded-cap", label: "Tapa roscada", short: "Tapa", Icon: Package },
   { type: "threaded-cylinder", label: "Cilindro roscado", short: "Cilindro", Icon: Cylinder },
   { type: "tube", label: "Tubo / Cono hueco", short: "Tubo", Icon: Cone },
+  { type: "clevis", label: "Clevis / orejas de unión", short: "Clevis", Icon: Link2 },
   { type: "note", label: "Nota (anotación)", short: "Nota", Icon: StickyNote },
 ];
 
@@ -354,8 +355,17 @@ function HelixForge() {
     const p = selected.params;
     const t = selected.type;
     const msgs: { level: "warn" | "error" | "ok"; text: string }[] = [];
-    if (t !== "tube" && p.innerDiameter >= p.outerDiameter) msgs.push({ level: "error", text: "El diámetro interior debe ser menor que el exterior." });
-    if (t !== "tube" && p.pitch <= 0) msgs.push({ level: "error", text: "El paso debe ser positivo." });
+    const generic = t !== "tube" && t !== "clevis";
+    if (generic && p.innerDiameter >= p.outerDiameter) msgs.push({ level: "error", text: "El diámetro interior debe ser menor que el exterior." });
+    if (generic && p.pitch <= 0) msgs.push({ level: "error", text: "El paso debe ser positivo." });
+    if (t === "clevis") {
+      const style = p.clevisStyle ?? "fork";
+      const w = p.lugWidth ?? 20, pd = p.pinDiameter ?? 8, arm = p.armLength ?? 28;
+      if (pd >= w - 1.5) msgs.push({ level: "error", text: "El agujero es demasiado grande para el ancho de la oreja: deja al menos 1,5 mm de material." });
+      if (arm < w / 2) msgs.push({ level: "warn", text: "El brazo es más corto que el radio del ojo: la oreja queda muy compacta." });
+      if (style === "fork" && (p.clevisGap ?? 10) < 1) msgs.push({ level: "warn", text: "La separación entre orejas es muy pequeña." });
+      if (style !== "pin" && (p.baseThickness ?? 6) < 1.5) msgs.push({ level: "warn", text: "Base muy fina: puede romperse al aplicar carga." });
+    }
     if (t === "tube") {
       const dA = p.tubeDiameterA ?? 0;
       const dB = p.tubeDiameterB ?? 0;
@@ -394,6 +404,10 @@ function HelixForge() {
   }, [statsTick, selectedId, selected]);
 
   const buildFileName = (p: PartInstance, ext: string) => {
+    if (p.type === "clevis") {
+      const st = p.params.clevisStyle ?? "fork";
+      return `clevis_${st}_pin${p.params.pinDiameter}_w${p.params.lugWidth}_a${p.params.armLength}.${ext}`;
+    }
     if (p.type === "tube") {
       return `tube_dA${p.params.tubeDiameterA}_dB${p.params.tubeDiameterB}_t${p.params.wallThickness}_l${p.params.length}.${ext}`;
     }
@@ -869,7 +883,7 @@ function HelixForge() {
                     </Button>
                   </Section>
 
-                  {t !== "tube" && (
+                  {t !== "tube" && t !== "clevis" && (
                   <>
 
                   <Section title="Dimensiones principales">
@@ -909,6 +923,66 @@ function HelixForge() {
                   </Section>
 
                   </>
+                  )}
+
+                  {t === "clevis" && (
+                    <>
+                      <Section title="Tipo de unión">
+                        <div className="flex gap-1">
+                          {([["fork", "Horquilla"], ["single", "Oreja simple"], ["pin", "Pasador"]] as const).map(([v, label]) => (
+                            <button key={v} onClick={() => updateSelectedParams("clevisStyle", v)}
+                              className={`flex-1 rounded border py-1 text-[11px] transition-colors ${(p!.clevisStyle ?? "fork") === v ? "border-primary bg-primary/20 text-primary" : "border-border bg-input text-muted-foreground hover:border-primary/50"}`}>
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="rounded border border-dashed border-border bg-panel/30 p-2 text-[10px] text-muted-foreground">
+                          Combina una horquilla + una oreja simple + un pasador para formar la junta completa.
+                        </div>
+                      </Section>
+
+                      <Section title="Oreja / ojo">
+                        <NumberControl label="Diámetro del pasador" value={p!.pinDiameter ?? 8} min={1} max={100} step={0.1}
+                          tooltip="Diámetro del agujero pasante (y del pasador)." onChange={(v) => updateSelectedParams("pinDiameter", v)} />
+                        {(p!.clevisStyle ?? "fork") !== "pin" && (
+                          <>
+                            <NumberControl label="Ancho de la oreja" value={p!.lugWidth ?? 20} min={2} max={200} step={0.5}
+                              tooltip="Ancho de la oreja; define el diámetro exterior del ojo." onChange={(v) => updateSelectedParams("lugWidth", v)} />
+                            <NumberControl label="Espesor de la oreja" value={p!.lugThickness ?? 6} min={0.5} max={60} step={0.1}
+                              onChange={(v) => updateSelectedParams("lugThickness", v)} />
+                            <NumberControl label="Largo del brazo" value={p!.armLength ?? 28} min={2} max={300} step={0.5}
+                              tooltip="Distancia desde la base hasta el centro del agujero." onChange={(v) => updateSelectedParams("armLength", v)} />
+                          </>
+                        )}
+                        {(p!.clevisStyle ?? "fork") === "fork" && (
+                          <NumberControl label="Separación entre orejas" value={p!.clevisGap ?? 10} min={0.5} max={200} step={0.1}
+                            tooltip="Hueco interior de la horquilla: debe ser algo mayor que el espesor de la oreja simple."
+                            onChange={(v) => updateSelectedParams("clevisGap", v)} />
+                        )}
+                      </Section>
+
+                      {(p!.clevisStyle ?? "fork") !== "pin" && (
+                        <Section title="Base de anclaje">
+                          <NumberControl label="Ancho base" value={p!.baseWidth ?? 34} min={2} max={400} step={0.5} onChange={(v) => updateSelectedParams("baseWidth", v)} />
+                          <NumberControl label="Fondo base" value={p!.baseDepth ?? 24} min={2} max={400} step={0.5} onChange={(v) => updateSelectedParams("baseDepth", v)} />
+                          <NumberControl label="Espesor base" value={p!.baseThickness ?? 6} min={0.5} max={80} step={0.1} onChange={(v) => updateSelectedParams("baseThickness", v)} />
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">Agujeros de fijación</label>
+                            <div className="flex gap-1">
+                              {([0, 2, 4] as const).map((n) => (
+                                <button key={n} onClick={() => updateSelectedParams("baseHoles", n)}
+                                  className={`flex-1 rounded border py-1 text-xs font-mono transition-colors ${(p!.baseHoles ?? 0) === n ? "border-primary bg-primary/20 text-primary" : "border-border bg-input text-muted-foreground hover:border-primary/50"}`}>
+                                  {n === 0 ? "Sin" : `${n}×`}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          {(p!.baseHoles ?? 0) > 0 && (
+                            <NumberControl label="Diámetro agujeros" value={p!.baseHoleDiameter ?? 5} min={0.5} max={60} step={0.1} onChange={(v) => updateSelectedParams("baseHoleDiameter", v)} />
+                          )}
+                        </Section>
+                      )}
+                    </>
                   )}
 
                   {t === "tube" && (
