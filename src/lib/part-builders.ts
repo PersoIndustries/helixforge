@@ -220,6 +220,8 @@ export const DEFAULT_PARAMS: Record<PartType, PartParams> = {
     tubeDiameterA: 30,
     tubeDiameterB: 20,
     wallThickness: 2,
+    tubeAngleA: 0,
+    tubeAngleB: 0,
   },
   clevis: {
     outerDiameter: 20,
