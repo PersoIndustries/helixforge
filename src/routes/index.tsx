@@ -7,6 +7,7 @@ import {
   Plus, Eye, EyeOff, Copy, Trash2, Focus, GripVertical, Pencil, Check, X,
   ChevronDown, ChevronRight, Upload, FileJson, StickyNote,
   ClipboardCopy, ClipboardPaste, Stethoscope, AlertTriangle, Cone, Link2,
+  RectangleVertical, RectangleHorizontal, Box, Scan, Frame, CircleDashed,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -1287,8 +1288,8 @@ function HelixForge() {
             <Toggle pressed={showGrid} onPressedChange={setShowGrid} size="sm" className="h-7 px-2 data-[state=on]:bg-primary/20 data-[state=on]:text-primary"><Grid3x3 className="h-3.5 w-3.5" /></Toggle>
             <Toggle pressed={showAxes} onPressedChange={setShowAxes} size="sm" className="h-7 px-2 data-[state=on]:bg-primary/20 data-[state=on]:text-primary"><Ruler className="h-3.5 w-3.5" /></Toggle>
             <Toggle pressed={autoRotate} onPressedChange={setAutoRotate} size="sm" className="h-7 px-2 data-[state=on]:bg-primary/20 data-[state=on]:text-primary"><Play className="h-3.5 w-3.5" /></Toggle>
-            <Toggle pressed={clipEnabled} onPressedChange={setClipEnabled} size="sm" className="h-7 gap-1 px-2 data-[state=on]:bg-primary/20 data-[state=on]:text-primary">
-              <Scissors className="h-3.5 w-3.5" /> Sección
+            <Toggle pressed={clipEnabled} onPressedChange={setClipEnabled} size="sm" className="h-7 px-2 data-[state=on]:bg-primary/20 data-[state=on]:text-primary" title="Sección de corte">
+              <Scissors className="h-3.5 w-3.5" />
             </Toggle>
             {clipEnabled && (
               <div className="flex w-40 items-center gap-2">
@@ -1301,10 +1302,10 @@ function HelixForge() {
               pressed={diagOpen}
               onPressedChange={setDiagOpen}
               size="sm"
-              className="h-7 gap-1 px-2 data-[state=on]:bg-destructive/20 data-[state=on]:text-destructive"
+              className="h-7 px-2 data-[state=on]:bg-destructive/20 data-[state=on]:text-destructive"
               title="Diagnóstico de malla: detecta huecos, bordes abiertos y paredes finas"
             >
-              <Stethoscope className="h-3.5 w-3.5" /> Diagnóstico
+              <Stethoscope className="h-3.5 w-3.5" />
             </Toggle>
             <div className="ml-auto text-[10px] text-muted-foreground">
               Clic sobre una pieza para seleccionarla · doble-clic en la lista → focus
