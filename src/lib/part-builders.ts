@@ -68,6 +68,8 @@ export interface PartParams {
   // Tube (hollow conical frustum)
   tubeDiameterA?: number; // diámetro exterior del extremo superior (+Z)
   tubeDiameterB?: number; // diámetro exterior del extremo inferior (Z = 0)
+  tubeAngleA?: number;    // inclinación del corte superior (grados)
+  tubeAngleB?: number;    // inclinación del corte inferior (grados)
   // Clevis / orejas de unión
   clevisStyle?: "fork" | "single" | "pin";
   lugThickness?: number;     // espesor de cada oreja
