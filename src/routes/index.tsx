@@ -375,6 +375,10 @@ function HelixForge() {
       if (wall <= 0) msgs.push({ level: "error", text: "El grosor de pared debe ser positivo." });
       if (wall * 2 >= Math.min(dA, dB)) msgs.push({ level: "error", text: "El grosor es demasiado grande: no queda hueco interior en el extremo menor." });
       if (wall * 2 >= Math.min(dA, dB) * 0.7) msgs.push({ level: "warn", text: "Pared muy gruesa respecto al diámetro menor: el hueco interior es muy estrecho." });
+      const aA = p.tubeAngleA ?? 0, aB = p.tubeAngleB ?? 0;
+      const drop = (dA / 2) * Math.abs(Math.tan((aA * Math.PI) / 180)) + (dB / 2) * Math.abs(Math.tan((aB * Math.PI) / 180));
+      if (drop >= p.length) msgs.push({ level: "error", text: "Los cortes inclinados se cruzan: reduce los ángulos o aumenta la longitud." });
+      else if (drop > p.length * 0.7) msgs.push({ level: "warn", text: "Cortes muy inclinados respecto a la longitud: la pieza queda muy afilada en un lado." });
     }
     if (p.pitch < p.wireThickness && t.includes("spring")) msgs.push({ level: "warn", text: "Paso menor que grosor: las espiras se solapan." });
     if (t === "screw" && (p.threadLength ?? 0) > p.length) msgs.push({ level: "warn", text: "La longitud de rosca supera la del tornillo." });
