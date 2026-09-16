@@ -1000,6 +1000,12 @@ function HelixForge() {
                       <NumberControl label="Longitud" value={p!.length} min={1} max={500} step={0.5}
                         tooltip="Longitud axial del tubo."
                         onChange={(v) => updateSelectedParams("length", v)} />
+                      <NumberControl label="Ángulo extremo A (superior)" value={p!.tubeAngleA ?? 0} min={-75} max={75} step={1}
+                        tooltip="Inclinación del corte superior en grados. 0 = corte recto; valores positivos o negativos inclinan el plano de corte."
+                        onChange={(v) => updateSelectedParams("tubeAngleA", v)} />
+                      <NumberControl label="Ángulo extremo B (inferior)" value={p!.tubeAngleB ?? 0} min={-75} max={75} step={1}
+                        tooltip="Inclinación del corte inferior en grados. 0 = corte recto."
+                        onChange={(v) => updateSelectedParams("tubeAngleB", v)} />
                       <div className="rounded border border-dashed border-border bg-panel/30 p-2 text-[10px] text-muted-foreground">
                         Tubo hueco con superficie interior y exterior sólidas (manifold), listo para impresión 3D.
                       </div>
