@@ -70,6 +70,8 @@ export interface PartParams {
   tubeDiameterB?: number; // diámetro exterior del extremo inferior (Z = 0)
   tubeAngleA?: number;    // inclinación del corte superior (grados)
   tubeAngleB?: number;    // inclinación del corte inferior (grados)
+  cylinderAngleA?: number; // inclinación del corte superior del cilindro (grados)
+  cylinderAngleB?: number; // inclinación del corte inferior del cilindro (grados)
   // Clevis / orejas de unión
   clevisStyle?: "fork" | "single" | "pin";
   lugThickness?: number;     // espesor de cada oreja
@@ -222,6 +224,8 @@ export const DEFAULT_PARAMS: Record<PartType, PartParams> = {
     wallThickness: 2,
     tubeAngleA: 0,
     tubeAngleB: 0,
+    cylinderAngleA: 0,
+    cylinderAngleB: 0,
   },
   clevis: {
     outerDiameter: 20,
