@@ -941,34 +941,43 @@ function buildTube(p: PartParams, material: THREE.Material): THREE.Group {
   const rTopIn = rTopOut - t;
   const rBotIn = rBotOut - t;
 
-  // Pared exterior (normales hacia fuera)
-  const outer = new THREE.Mesh(
-    new THREE.CylinderGeometry(rTopOut, rBotOut, L, segments, 1, true),
-    material
-  );
-  outer.rotation.x = Math.PI / 2;
-  outer.position.z = L / 2;
-  group.add(outer);
+  // Cortes inclinados (planos) en cada extremo, en grados
+  const clamp = (v: number) => Math.max(-75, Math.min(75, v));
+  const tanA = Math.tan((clamp(p.tubeAngleA ?? 0) * Math.PI) / 180);
+  const tanB = Math.tan((clamp(p.tubeAngleB ?? 0) * Math.PI) / 180);
 
-  // Pared interior: se invierte con scale(-1,1,1) para que las normales
-  // apunten hacia el hueco interior.
-  const innerGeom = new THREE.CylinderGeometry(rTopIn, rBotIn, L, segments, 1, true);
-  innerGeom.scale(-1, 1, 1);
-  const inner = new THREE.Mesh(innerGeom, material);
-  inner.rotation.x = Math.PI / 2;
-  inner.position.z = L / 2;
-  group.add(inner);
+  type Pt = [number, number, number];
+  const ringTopOut: Pt[] = [], ringTopIn: Pt[] = [], ringBotOut: Pt[] = [], ringBotIn: Pt[] = [];
+  for (let i = 0; i < segments; i++) {
+    const a = (i / segments) * Math.PI * 2;
+    const c = Math.cos(a), s = Math.sin(a);
+    ringTopOut.push([rTopOut * c, rTopOut * s, L + rTopOut * c * tanA]);
+    ringTopIn.push([rTopIn * c, rTopIn * s, L + rTopIn * c * tanA]);
+    ringBotOut.push([rBotOut * c, rBotOut * s, rBotOut * c * tanB]);
+    ringBotIn.push([rBotIn * c, rBotIn * s, rBotIn * c * tanB]);
+  }
 
-  // Anillos de cierre en ambos extremos
-  const topRing = new THREE.Mesh(new THREE.RingGeometry(rTopIn, rTopOut, segments, 1), material);
-  topRing.position.z = L;
-  group.add(topRing);
+  const pos: number[] = [];
+  const tri = (a: Pt, b: Pt, c: Pt) => { pos.push(...a, ...b, ...c); };
+  const quad = (a: Pt, b: Pt, c: Pt, d: Pt) => { tri(a, b, c); tri(a, c, d); };
 
-  const botRing = new THREE.Mesh(new THREE.RingGeometry(rBotIn, rBotOut, segments, 1), material);
-  botRing.rotation.x = Math.PI;
-  botRing.position.z = 0;
-  group.add(botRing);
+  for (let i = 0; i < segments; i++) {
+    const j = (i + 1) % segments;
+    // pared exterior (normal hacia fuera)
+    quad(ringBotOut[i], ringBotOut[j], ringTopOut[j], ringTopOut[i]);
+    // pared interior (winding invertido)
+    quad(ringBotIn[j], ringBotIn[i], ringTopIn[i], ringTopIn[j]);
+    // corona superior
+    quad(ringTopIn[i], ringTopOut[i], ringTopOut[j], ringTopIn[j]);
+    // corona inferior
+    quad(ringBotOut[i], ringBotIn[i], ringBotIn[j], ringBotOut[j]);
+  }
 
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  geom.computeVertexNormals();
+  const mesh = new THREE.Mesh(geom, material);
+  group.add(mesh);
   return group;
 }
 
