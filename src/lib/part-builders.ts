@@ -945,21 +945,41 @@ function buildTube(p: PartParams, material: THREE.Material): THREE.Group {
   const rTopIn = rTopOut - t;
   const rBotIn = rBotOut - t;
 
-  // Cortes inclinados (planos) en cada extremo, en grados
+  // Cortes inclinados (planos) en cada extremo, en grados.
+  // El tubo mantiene su forma cónica: sólo se recorta con los planos,
+  // calculando la intersección exacta plano/superficie para cada radio.
   const clamp = (v: number) => Math.max(-75, Math.min(75, v));
   const tanA = Math.tan((clamp(p.tubeAngleA ?? 0) * Math.PI) / 180);
   const tanB = Math.tan((clamp(p.tubeAngleB ?? 0) * Math.PI) / 180);
 
+  // r(z) = rBase + k*z para cada superficie (exterior / interior)
+  const kOut = (rTopOut - rBotOut) / L;
+  const kIn = (rTopIn - rBotIn) / L;
+
   type Pt = [number, number, number];
   const ringTopOut: Pt[] = [], ringTopIn: Pt[] = [], ringBotOut: Pt[] = [], ringBotIn: Pt[] = [];
+
+  // Intersección del plano z = c + x*tan con la generatriz r = rBase + k*z
+  const solve = (c: number, tan: number, rBase: number, k: number, cosA: number): [number, number] => {
+    const den = 1 - k * cosA * tan;
+    const z = Math.abs(den) < 1e-6 ? c : (c + rBase * cosA * tan) / den;
+    const zc = Math.max(-L * 4, Math.min(L * 5, z));
+    return [rBase + k * zc, zc];
+  };
+
   for (let i = 0; i < segments; i++) {
     const a = (i / segments) * Math.PI * 2;
     const c = Math.cos(a), s = Math.sin(a);
-    ringTopOut.push([rTopOut * c, rTopOut * s, L + rTopOut * c * tanA]);
-    ringTopIn.push([rTopIn * c, rTopIn * s, L + rTopIn * c * tanA]);
-    ringBotOut.push([rBotOut * c, rBotOut * s, rBotOut * c * tanB]);
-    ringBotIn.push([rBotIn * c, rBotIn * s, rBotIn * c * tanB]);
+    const [rto, zto] = solve(L, tanA, rBotOut, kOut, c);
+    const [rti, zti] = solve(L, tanA, rBotIn, kIn, c);
+    const [rbo, zbo] = solve(0, tanB, rBotOut, kOut, c);
+    const [rbi, zbi] = solve(0, tanB, rBotIn, kIn, c);
+    ringTopOut.push([rto * c, rto * s, zto]);
+    ringTopIn.push([rti * c, rti * s, zti]);
+    ringBotOut.push([rbo * c, rbo * s, zbo]);
+    ringBotIn.push([rbi * c, rbi * s, zbi]);
   }
+
 
   const pos: number[] = [];
   const tri = (a: Pt, b: Pt, c: Pt) => { pos.push(...a, ...b, ...c); };
