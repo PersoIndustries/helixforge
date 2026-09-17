@@ -1223,8 +1223,13 @@ function HelixForge() {
                               </button>
                             );
                           })}
-                        </div>
                       </div>
+                      <NumberControl label="Ángulo extremo A (superior)" value={p!.cylinderAngleA ?? 0} min={-75} max={75} step={1}
+                        unit="°" tooltip="Inclina el corte del extremo superior. 0° = corte recto."
+                        onChange={(v) => updateSelectedParams("cylinderAngleA", v)} />
+                      <NumberControl label="Ángulo extremo B (inferior)" value={p!.cylinderAngleB ?? 0} min={-75} max={75} step={1}
+                        unit="°" tooltip="Inclina el corte del extremo inferior. 0° = corte recto."
+                        onChange={(v) => updateSelectedParams("cylinderAngleB", v)} />
                     </Section>
                   )}
 
