@@ -91,6 +91,7 @@ interface PartInstance {
   params: PartParams;
   visible: boolean;
   transform: PartTransform;
+  color?: string | null;
 }
 
 interface HistoryEntry { id: string; name: string; at: number }
@@ -162,7 +163,7 @@ function HelixForge() {
         entry = { sig, group };
         cache.set(p.id, entry);
       }
-      return { id: p.id, group: entry.group, transform: p.transform, visible: p.visible };
+      return { id: p.id, group: entry.group, transform: p.transform, visible: p.visible, tint: p.color ?? null };
     });
     // Clean orphans
     const live = new Set(parts.map((p) => p.id));
@@ -294,6 +295,7 @@ function HelixForge() {
         params: { ...DEFAULT_PARAMS[rp.type!], ...(rp.params ?? {}) },
         visible: rp.visible !== false,
         transform: { ...DEFAULT_TRANSFORM(), ...(rp.transform ?? {}) },
+        color: typeof rp.color === "string" ? rp.color : null,
       },
     ]);
     setSelectedId(newId);
@@ -308,6 +310,10 @@ function HelixForge() {
 
   const toggleVisible = (id: string) => {
     setParts((ps) => ps.map((p) => (p.id === id ? { ...p, visible: !p.visible } : p)));
+  };
+
+  const setPartColor = (id: string, color: string | null) => {
+    setParts((ps) => ps.map((p) => (p.id === id ? { ...p, color } : p)));
   };
 
   const renamePart = (id: string, name: string) => {
@@ -514,6 +520,7 @@ function HelixForge() {
           params: { ...DEFAULT_PARAMS[type], ...(rp.params ?? {}) },
           visible: rp.visible !== false,
           transform: { ...DEFAULT_TRANSFORM(), ...(rp.transform ?? {}) },
+          color: typeof rp.color === "string" ? rp.color : null,
         });
       }
       if (valid.length === 0) throw new Error("El archivo no contiene piezas válidas");
