@@ -7,7 +7,7 @@ import {
   Plus, Eye, EyeOff, Copy, Trash2, Focus, GripVertical, Pencil, Check, X,
   ChevronDown, ChevronRight, Upload, FileJson, StickyNote,
   ClipboardCopy, ClipboardPaste, Stethoscope, AlertTriangle, Cone, Link2,
-  RectangleVertical, RectangleHorizontal, Box, Scan, Frame, CircleDashed,
+  RectangleVertical, RectangleHorizontal, Box, Scan, Frame, CircleDashed, Palette,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Toaster, toast } from "sonner";
 import { Viewer3D, type ViewerHandle, type MaterialPreset, type ViewMode, type PartRenderInput } from "@/components/Viewer3D";
 import { NumberControl } from "@/components/NumberControl";
@@ -91,9 +92,15 @@ interface PartInstance {
   params: PartParams;
   visible: boolean;
   transform: PartTransform;
+  color?: string | null;
 }
 
 interface HistoryEntry { id: string; name: string; at: number }
+
+const PART_COLORS = [
+  "#22d3ee", "#4ade80", "#facc15", "#f97316", "#f472b6",
+  "#a78bfa", "#60a5fa", "#fb7185", "#34d399", "#e2e8f0",
+];
 
 const DEFAULT_TRANSFORM = (): PartTransform => ({ x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 });
 
@@ -162,7 +169,7 @@ function HelixForge() {
         entry = { sig, group };
         cache.set(p.id, entry);
       }
-      return { id: p.id, group: entry.group, transform: p.transform, visible: p.visible };
+      return { id: p.id, group: entry.group, transform: p.transform, visible: p.visible, tint: p.color ?? null };
     });
     // Clean orphans
     const live = new Set(parts.map((p) => p.id));
@@ -243,7 +250,7 @@ function HelixForge() {
     const payload = {
       format: CLIPBOARD_FORMAT,
       version: 1,
-      part: { type: p.type, name: p.name, params: p.params, visible: p.visible, transform: p.transform },
+      part: { type: p.type, name: p.name, params: p.params, visible: p.visible, transform: p.transform, color: p.color ?? null },
     };
     const text = JSON.stringify(payload, null, 2);
     try {
@@ -265,8 +272,8 @@ function HelixForge() {
     if (!text.trim()) { toast.error("El portapapeles está vacío"); return; }
     let data: unknown;
     try { data = JSON.parse(text); } catch { toast.error("El portapapeles no contiene JSON válido"); return; }
-    const obj = data as { format?: string; part?: { type?: PartType; name?: string; params?: Partial<PartParams>; visible?: boolean; transform?: Partial<PartTransform> }; parts?: unknown };
-    const rp = obj?.part ?? (Array.isArray(obj?.parts) ? (obj.parts as { type?: PartType; name?: string; params?: Partial<PartParams>; visible?: boolean; transform?: Partial<PartTransform> }[])[0] : undefined);
+    const obj = data as { format?: string; part?: { type?: PartType; name?: string; params?: Partial<PartParams>; visible?: boolean; transform?: Partial<PartTransform>; color?: string | null }; parts?: unknown };
+    const rp = obj?.part ?? (Array.isArray(obj?.parts) ? (obj.parts as { type?: PartType; name?: string; params?: Partial<PartParams>; visible?: boolean; transform?: Partial<PartTransform>; color?: string | null }[])[0] : undefined);
     if (!rp || !rp.type || !(rp.type in DEFAULT_PARAMS)) {
       toast.error("El portapapeles no contiene una pieza válida");
       return;
@@ -294,6 +301,7 @@ function HelixForge() {
         params: { ...DEFAULT_PARAMS[rp.type!], ...(rp.params ?? {}) },
         visible: rp.visible !== false,
         transform: { ...DEFAULT_TRANSFORM(), ...(rp.transform ?? {}) },
+        color: typeof rp.color === "string" ? rp.color : null,
       },
     ]);
     setSelectedId(newId);
@@ -308,6 +316,10 @@ function HelixForge() {
 
   const toggleVisible = (id: string) => {
     setParts((ps) => ps.map((p) => (p.id === id ? { ...p, visible: !p.visible } : p)));
+  };
+
+  const setPartColor = (id: string, color: string | null) => {
+    setParts((ps) => ps.map((p) => (p.id === id ? { ...p, color } : p)));
   };
 
   const renamePart = (id: string, name: string) => {
@@ -514,6 +526,7 @@ function HelixForge() {
           params: { ...DEFAULT_PARAMS[type], ...(rp.params ?? {}) },
           visible: rp.visible !== false,
           transform: { ...DEFAULT_TRANSFORM(), ...(rp.transform ?? {}) },
+          color: typeof rp.color === "string" ? rp.color : null,
         });
       }
       if (valid.length === 0) throw new Error("El archivo no contiene piezas válidas");
@@ -760,7 +773,9 @@ function HelixForge() {
                           ? "border-primary bg-primary/15 text-primary"
                           : "border-border bg-input/40 text-foreground hover:border-primary/40"
                       } ${drop ? "ring-1 ring-primary" : ""} ${!p.visible ? "opacity-50" : ""}`}
+                      style={p.color ? { backgroundColor: `${p.color}1f`, borderColor: `${p.color}80` } : undefined}
                     >
+                      {p.color && <span className="h-3 w-1 shrink-0 rounded-full" style={{ backgroundColor: p.color }} />}
                       <GripVertical className="h-3 w-3 shrink-0 text-muted-foreground opacity-50 group-hover:opacity-100" />
                       <meta.Icon className={`h-3.5 w-3.5 shrink-0 ${active ? "text-primary" : "text-muted-foreground"}`} />
                       {editingId === p.id ? (
@@ -783,6 +798,39 @@ function HelixForge() {
                       >
                         <Pencil className="h-3 w-3" />
                       </button>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            onClick={(e) => e.stopPropagation()}
+                            className={`${p.color ? "" : "opacity-0 group-hover:opacity-100"} text-muted-foreground hover:text-primary`}
+                            title="Color de la pieza"
+                          >
+                            <Palette className="h-3 w-3" style={p.color ? { color: p.color } : undefined} />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent align="end" className="w-44 p-2" onClick={(e) => e.stopPropagation()}>
+                          <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            Color de la pieza
+                          </div>
+                          <div className="grid grid-cols-5 gap-1.5">
+                            {PART_COLORS.map((c) => (
+                              <button
+                                key={c}
+                                onClick={(e) => { e.stopPropagation(); setPartColor(p.id, c); }}
+                                className={`h-5 w-5 rounded border-2 transition-transform hover:scale-110 ${p.color === c ? "border-primary scale-110" : "border-border"}`}
+                                style={{ backgroundColor: c }}
+                                title={c}
+                              />
+                            ))}
+                          </div>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setPartColor(p.id, null); }}
+                            className="mt-2 w-full rounded border border-border py-1 text-[11px] text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                          >
+                            Sin color
+                          </button>
+                        </PopoverContent>
+                      </Popover>
                       <button
                         onClick={(e) => { e.stopPropagation(); toggleVisible(p.id); }}
                         className="text-muted-foreground hover:text-foreground"
