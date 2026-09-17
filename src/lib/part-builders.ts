@@ -882,49 +882,52 @@ function buildThreadedCylinder(p: PartParams, material: THREE.Material): THREE.G
   const outerWallR = threadMode === "external" ? Math.max(0.1, outerR - threadDepth) : outerR;
   const innerR = p.hollow ? Math.min(p.innerDiameter / 2, outerWallR - 0.6) : 0;
 
-  if (innerR > 0) {
-    // Manifold hollow tube: 4 pieces with consistent outward normals.
-    const outer = new THREE.Mesh(
-      new THREE.CylinderGeometry(outerWallR, outerWallR, p.length, segments, 1, true),
-      material
-    );
-    outer.rotation.x = Math.PI / 2;
-    outer.position.z = p.length / 2;
-    group.add(outer);
+  // Cortes inclinados en ambos extremos (planos reales, sin deformar el
+  // cilindro): z = c + x*tan(ángulo).
+  const clampAng = (v: number) => Math.max(-75, Math.min(75, v));
+  const tanA = Math.tan((clampAng(p.cylinderAngleA ?? 0) * Math.PI) / 180);
+  const tanB = Math.tan((clampAng(p.cylinderAngleB ?? 0) * Math.PI) / 180);
+  const L = Math.max(0.5, p.length);
 
-    const innerGeom = new THREE.CylinderGeometry(innerR, innerR, p.length, segments, 1, true);
-    innerGeom.scale(-1, 1, 1);
-    const inner = new THREE.Mesh(innerGeom, material);
-    inner.rotation.x = Math.PI / 2;
-    inner.position.z = p.length / 2;
-    group.add(inner);
+  type Pt3 = [number, number, number];
+  const coreR = innerR > 0 ? outerWallR : (threadMode === "external" ? outerWallR : outerR);
+  const rOut = innerR > 0 ? outerWallR : coreR;
 
-    const topRing = new THREE.Mesh(
-      new THREE.RingGeometry(innerR, outerWallR, segments, 1),
-      material
-    );
-    topRing.position.z = p.length;
-    group.add(topRing);
-
-    const botRing = new THREE.Mesh(
-      new THREE.RingGeometry(innerR, outerWallR, segments, 1),
-      material
-    );
-    botRing.rotation.x = Math.PI;
-    botRing.position.z = 0;
-    group.add(botRing);
-  } else {
-    // Macizo: núcleo hasta el diámetro exterior (o hasta la raíz si hay
-    // rosca externa, para que el filete quede al ras).
-    const coreR = threadMode === "external" ? outerWallR : outerR;
-    const core = new THREE.Mesh(
-      new THREE.CylinderGeometry(coreR, coreR, p.length, segments, 1, false),
-      material
-    );
-    core.rotation.x = Math.PI / 2;
-    core.position.z = p.length / 2;
-    group.add(core);
+  const ringTopOut: Pt3[] = [], ringBotOut: Pt3[] = [], ringTopIn: Pt3[] = [], ringBotIn: Pt3[] = [];
+  for (let i = 0; i < segments; i++) {
+    const a = (i / segments) * Math.PI * 2;
+    const c = Math.cos(a), s = Math.sin(a);
+    ringTopOut.push([rOut * c, rOut * s, L + rOut * c * tanA]);
+    ringBotOut.push([rOut * c, rOut * s, 0 + rOut * c * tanB]);
+    if (innerR > 0) {
+      ringTopIn.push([innerR * c, innerR * s, L + innerR * c * tanA]);
+      ringBotIn.push([innerR * c, innerR * s, 0 + innerR * c * tanB]);
+    }
   }
+
+  const pos: number[] = [];
+  const tri = (a: Pt3, b: Pt3, c: Pt3) => { pos.push(...a, ...b, ...c); };
+  const quad = (a: Pt3, b: Pt3, c: Pt3, d: Pt3) => { tri(a, b, c); tri(a, c, d); };
+
+  for (let i = 0; i < segments; i++) {
+    const j = (i + 1) % segments;
+    quad(ringBotOut[i], ringBotOut[j], ringTopOut[j], ringTopOut[i]);
+    if (innerR > 0) {
+      quad(ringBotIn[j], ringBotIn[i], ringTopIn[i], ringTopIn[j]);
+      quad(ringTopIn[i], ringTopOut[i], ringTopOut[j], ringTopIn[j]);
+      quad(ringBotOut[i], ringBotIn[i], ringBotIn[j], ringBotOut[j]);
+    } else {
+      const topC: Pt3 = [0, 0, L];
+      const botC: Pt3 = [0, 0, 0];
+      tri(topC, ringTopOut[i], ringTopOut[j]);
+      tri(botC, ringBotOut[j], ringBotOut[i]);
+    }
+  }
+
+  const bodyGeom = new THREE.BufferGeometry();
+  bodyGeom.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  bodyGeom.computeVertexNormals();
+  group.add(new THREE.Mesh(bodyGeom, material));
 
   if (threadMode === "external") {
     group.add(buildThreadedShaft(p, material, p.length, 0));
