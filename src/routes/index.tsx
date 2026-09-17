@@ -250,7 +250,7 @@ function HelixForge() {
     const payload = {
       format: CLIPBOARD_FORMAT,
       version: 1,
-      part: { type: p.type, name: p.name, params: p.params, visible: p.visible, transform: p.transform },
+      part: { type: p.type, name: p.name, params: p.params, visible: p.visible, transform: p.transform, color: p.color ?? null },
     };
     const text = JSON.stringify(payload, null, 2);
     try {
