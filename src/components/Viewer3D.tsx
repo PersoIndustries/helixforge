@@ -10,6 +10,7 @@ export interface PartRenderInput {
   group: THREE.Group;
   transform: { x: number; y: number; z: number; rx: number; ry: number; rz: number };
   visible: boolean;
+  tint?: string | null;
 }
 
 export interface ViewerHandle {
@@ -54,6 +55,7 @@ export const Viewer3D = forwardRef<ViewerHandle, Props>(function Viewer3D({ onPi
     controls: OrbitControls;
     assembly: THREE.Group; // container for all part groups
     partMap: Map<string, THREE.Group>;
+    partTints: Map<string, string | null>;
     grid: THREE.GridHelper;
     axes: THREE.AxesHelper;
     ruler: THREE.Group;
@@ -140,6 +142,7 @@ export const Viewer3D = forwardRef<ViewerHandle, Props>(function Viewer3D({ onPi
     const state = {
       renderer, scene, camera, controls, assembly,
       partMap: new Map<string, THREE.Group>(),
+      partTints: new Map<string, string | null>(),
       grid, axes, ruler, clipPlane, clipHelper,
       clipEnabled: false,
       viewMode: "solid" as ViewMode,
@@ -241,9 +244,13 @@ export const Viewer3D = forwardRef<ViewerHandle, Props>(function Viewer3D({ onPi
     };
   }, []);
 
-  const applyMaterialToGroup = (group: THREE.Group, selected: boolean) => {
+  const applyMaterialToGroup = (group: THREE.Group, selected: boolean, tint?: string | null) => {
     const s = stateRef.current!;
     const preset = MATERIAL_PRESETS[s.materialPreset];
+    const baseColor = new THREE.Color(preset.color);
+    if (tint) {
+      try { baseColor.lerp(new THREE.Color(tint), 0.45); } catch { /* invalid color */ }
+    }
     group.traverse((c) => {
       const m = c as THREE.Mesh;
       if (!m.isMesh) return;
@@ -251,7 +258,7 @@ export const Viewer3D = forwardRef<ViewerHandle, Props>(function Viewer3D({ onPi
       const isBore = currentMat && currentMat.color && currentMat.color.getHex() === 0x0b0f14;
       if (isBore) return;
       const mat = new THREE.MeshStandardMaterial({
-        color: preset.color,
+        color: baseColor.clone(),
         metalness: preset.metalness,
         roughness: preset.roughness,
         envMapIntensity: 1.1,
@@ -269,7 +276,7 @@ export const Viewer3D = forwardRef<ViewerHandle, Props>(function Viewer3D({ onPi
 
   const reapplyAllMaterials = () => {
     const s = stateRef.current!;
-    s.partMap.forEach((g, id) => applyMaterialToGroup(g, id === s.selectedId));
+    s.partMap.forEach((g, id) => applyMaterialToGroup(g, id === s.selectedId, s.partTints.get(id) ?? null));
   };
 
   useImperativeHandle(ref, () => ({
@@ -290,11 +297,15 @@ export const Viewer3D = forwardRef<ViewerHandle, Props>(function Viewer3D({ onPi
             }
           });
           s.partMap.delete(id);
+          s.partTints.delete(id);
         }
       }
       // Add or replace
       for (const p of parts) {
         const existing = s.partMap.get(p.id);
+        const prevTint = s.partTints.get(p.id) ?? null;
+        const nextTint = p.tint ?? null;
+        s.partTints.set(p.id, nextTint);
         if (existing !== p.group) {
           if (existing) {
             s.assembly.remove(existing);
@@ -312,7 +323,9 @@ export const Viewer3D = forwardRef<ViewerHandle, Props>(function Viewer3D({ onPi
           p.group.traverse((c) => { c.userData.partId = p.id; });
           s.assembly.add(p.group);
           s.partMap.set(p.id, p.group);
-          applyMaterialToGroup(p.group, p.id === s.selectedId);
+          applyMaterialToGroup(p.group, p.id === s.selectedId, nextTint);
+        } else if (prevTint !== nextTint) {
+          applyMaterialToGroup(p.group, p.id === s.selectedId, nextTint);
         }
         // Transform & visibility (relative to internal centering)
         p.group.position.set(p.transform.x, p.transform.y, p.transform.z);
