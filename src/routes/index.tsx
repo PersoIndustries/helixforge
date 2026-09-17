@@ -380,6 +380,14 @@ function HelixForge() {
       if (drop >= p.length) msgs.push({ level: "error", text: "Los cortes inclinados se cruzan: reduce los ángulos o aumenta la longitud." });
       else if (drop > p.length * 0.7) msgs.push({ level: "warn", text: "Cortes muy inclinados respecto a la longitud: la pieza queda muy afilada en un lado." });
     }
+    if (t === "threaded-cylinder") {
+      const cA = p.cylinderAngleA ?? 0, cB = p.cylinderAngleB ?? 0;
+      const r = p.outerDiameter / 2;
+      const drop = r * (Math.abs(Math.tan((cA * Math.PI) / 180)) + Math.abs(Math.tan((cB * Math.PI) / 180)));
+      if (drop >= p.length) msgs.push({ level: "error", text: "Los cortes inclinados se cruzan: reduce los ángulos o aumenta la longitud." });
+      else if (drop > p.length * 0.7) msgs.push({ level: "warn", text: "Cortes muy inclinados: la pieza queda muy afilada en un lado." });
+      if ((cA !== 0 || cB !== 0) && (p.cylinderThread ?? "external") !== "none") msgs.push({ level: "warn", text: "Con cortes inclinados la rosca puede sobresalir de los extremos." });
+    }
     if (p.pitch < p.wireThickness && t.includes("spring")) msgs.push({ level: "warn", text: "Paso menor que grosor: las espiras se solapan." });
     if (t === "screw" && (p.threadLength ?? 0) > p.length) msgs.push({ level: "warn", text: "La longitud de rosca supera la del tornillo." });
     if (p.resolution < 24) msgs.push({ level: "warn", text: "Resolución baja: la rosca puede verse facetada." });
