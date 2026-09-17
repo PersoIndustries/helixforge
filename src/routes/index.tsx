@@ -272,8 +272,8 @@ function HelixForge() {
     if (!text.trim()) { toast.error("El portapapeles está vacío"); return; }
     let data: unknown;
     try { data = JSON.parse(text); } catch { toast.error("El portapapeles no contiene JSON válido"); return; }
-    const obj = data as { format?: string; part?: { type?: PartType; name?: string; params?: Partial<PartParams>; visible?: boolean; transform?: Partial<PartTransform> }; parts?: unknown };
-    const rp = obj?.part ?? (Array.isArray(obj?.parts) ? (obj.parts as { type?: PartType; name?: string; params?: Partial<PartParams>; visible?: boolean; transform?: Partial<PartTransform> }[])[0] : undefined);
+    const obj = data as { format?: string; part?: { type?: PartType; name?: string; params?: Partial<PartParams>; visible?: boolean; transform?: Partial<PartTransform>; color?: string | null }; parts?: unknown };
+    const rp = obj?.part ?? (Array.isArray(obj?.parts) ? (obj.parts as { type?: PartType; name?: string; params?: Partial<PartParams>; visible?: boolean; transform?: Partial<PartTransform>; color?: string | null }[])[0] : undefined);
     if (!rp || !rp.type || !(rp.type in DEFAULT_PARAMS)) {
       toast.error("El portapapeles no contiene una pieza válida");
       return;
