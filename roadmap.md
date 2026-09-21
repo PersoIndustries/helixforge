@@ -1,2 +1,2 @@
-- Cerrar por defecto las secciones de configuración de cada pieza.
-- Revisar y subdividir la geometría de piezas largas para evitar triángulos estirados.
+
+No open tasks.
