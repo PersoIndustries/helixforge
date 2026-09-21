@@ -289,6 +289,16 @@ function handedSign(h: "right" | "left"): 1 | -1 {
   return h === "right" ? 1 : -1;
 }
 
+function meshRadialSegments(p: PartParams, min = 48, multiplier = 1) {
+  return Math.max(min, Math.floor(p.resolution * multiplier));
+}
+
+function meshAxialSegments(length: number, radius: number, radialSegments: number) {
+  const circumferentialStep = (Math.PI * 2 * Math.max(1, radius)) / Math.max(8, radialSegments);
+  const targetHeight = Math.max(2, Math.min(8, circumferentialStep * 2.5));
+  return Math.max(1, Math.min(220, Math.ceil(Math.max(0.1, length) / targetHeight)));
+}
+
 function buildSpring(p: PartParams, material: THREE.Material): THREE.Group {
   const group = new THREE.Group();
   const meanRadius = (p.outerDiameter - p.wireThickness) / 2;
@@ -320,8 +330,10 @@ function buildThreadedShaft(
   const group = new THREE.Group();
   // Core cylinder (root diameter)
   const rootR = Math.max(p.innerDiameter / 2, p.outerDiameter / 2 - p.wireThickness * 0.9);
+  const radialSegments = meshRadialSegments(p, 32);
+  const heightSegments = meshAxialSegments(length, rootR, radialSegments);
   const core = new THREE.Mesh(
-    new THREE.CylinderGeometry(rootR, rootR, length, Math.max(24, p.resolution)),
+    new THREE.CylinderGeometry(rootR, rootR, length, radialSegments, heightSegments),
     material
   );
   core.rotation.x = Math.PI / 2;
@@ -412,15 +424,17 @@ function buildScrewHead(p: PartParams, material: THREE.Material): THREE.Group {
   const hType = p.headType ?? "hex";
   const hHeight = p.headHeight ?? p.outerDiameter * 0.7;
   const hDiameter = p.headDiameter ?? p.outerDiameter * 1.6;
+  const headSegments = hType === "hex" ? 6 : meshRadialSegments(p, 40);
+  const headHeightSegments = meshAxialSegments(hHeight, hDiameter / 2, headSegments);
   let head: THREE.Mesh;
   if (hType === "hex") {
     head = new THREE.Mesh(
-      new THREE.CylinderGeometry(hDiameter / 2, hDiameter / 2, hHeight, 6),
+      new THREE.CylinderGeometry(hDiameter / 2, hDiameter / 2, hHeight, 6, headHeightSegments),
       material
     );
   } else if (hType === "socket") {
     head = new THREE.Mesh(
-      new THREE.CylinderGeometry(hDiameter / 2, hDiameter / 2, hHeight, 40),
+      new THREE.CylinderGeometry(hDiameter / 2, hDiameter / 2, hHeight, headSegments, headHeightSegments),
       material
     );
   } else {
@@ -439,8 +453,9 @@ function buildScrew(p: PartParams, material: THREE.Material): THREE.Group {
   // Smooth shank
   if (smoothL > 0) {
     const rootR = p.outerDiameter / 2;
+    const radialSegments = meshRadialSegments(p, 40);
     const shank = new THREE.Mesh(
-      new THREE.CylinderGeometry(rootR, rootR, smoothL, 40),
+      new THREE.CylinderGeometry(rootR, rootR, smoothL, radialSegments, meshAxialSegments(smoothL, rootR, radialSegments)),
       material
     );
     shank.rotation.x = Math.PI / 2;
@@ -457,8 +472,10 @@ function buildNut(p: PartParams, material: THREE.Material): THREE.Group {
   const height = p.nutHeight ?? p.outerDiameter * 0.8;
   const across = p.headDiameter ?? p.outerDiameter * 1.6;
   const boreR = p.outerDiameter / 2;
+  const bodySegments = p.nutShape === "square" ? 4 : 6;
+  const heightSegments = meshAxialSegments(height, across / 2, bodySegments);
   const body = new THREE.Mesh(
-    new THREE.CylinderGeometry(across / 2, across / 2, height, p.nutShape === "square" ? 4 : 6),
+    new THREE.CylinderGeometry(across / 2, across / 2, height, bodySegments, heightSegments),
     material
   );
   body.rotation.x = Math.PI / 2;
@@ -466,7 +483,7 @@ function buildNut(p: PartParams, material: THREE.Material): THREE.Group {
   group.add(body);
   // Bore (visual: place a slightly darker cylinder — we can't boolean cleanly, so use a hole cylinder as a matte hole cue)
   const bore = new THREE.Mesh(
-    new THREE.CylinderGeometry(boreR, boreR, height + 0.1, 48, 1, true),
+    new THREE.CylinderGeometry(boreR, boreR, height + 0.1, meshRadialSegments(p, 48), meshAxialSegments(height, boreR, meshRadialSegments(p, 48)), true),
     new THREE.MeshStandardMaterial({
       color: 0x0b0f14,
       side: THREE.DoubleSide,
@@ -490,8 +507,9 @@ function buildNut(p: PartParams, material: THREE.Material): THREE.Group {
 function buildAuger(p: PartParams, material: THREE.Material): THREE.Group {
   const group = new THREE.Group();
   const shaftR = (p.shaftDiameter ?? p.innerDiameter) / 2;
+  const shaftSegments = meshRadialSegments(p, 40);
   const shaft = new THREE.Mesh(
-    new THREE.CylinderGeometry(shaftR, shaftR, p.length, 40),
+    new THREE.CylinderGeometry(shaftR, shaftR, p.length, shaftSegments, meshAxialSegments(p.length, shaftR, shaftSegments)),
     material
   );
   shaft.rotation.x = Math.PI / 2;
@@ -559,7 +577,7 @@ function buildKnurledCylinder(
   ridges = 60
 ): THREE.Mesh {
   const segments = Math.max(96, ridges * 2);
-  const geom = new THREE.CylinderGeometry(radius, radius, height, segments, 1, true);
+  const geom = new THREE.CylinderGeometry(radius, radius, height, segments, meshAxialSegments(height, radius, segments), true);
   const pos = geom.attributes.position as THREE.BufferAttribute;
   // Grooves are cut INWARD from the nominal outer radius so the outer envelope
   // stays at `radius`. This lets top/bottom discs and seam rings at `outerR`
@@ -636,14 +654,39 @@ function addVertexForProfile(positions: number[], radiusAt: CapRadiusFn, theta: 
 }
 
 function createLayeredSurface(layers: CapLayer[], segments: number) {
+  const refinedLayers: CapLayer[] = [];
+  for (let i = 0; i < layers.length; i++) {
+    const current = layers[i];
+    if (!current) continue;
+    if (i === 0) {
+      refinedLayers.push(current);
+      continue;
+    }
+    const previous = layers[i - 1];
+    if (!previous) continue;
+    const dz = Math.abs(current.z - previous.z);
+    let sampleRadius = 1;
+    for (let j = 0; j < Math.min(segments, 24); j++) {
+      const theta = (j / Math.min(segments, 24)) * Math.PI * 2;
+      sampleRadius = Math.max(sampleRadius, previous.radiusAt(theta), current.radiusAt(theta));
+    }
+    const cuts = meshAxialSegments(dz, sampleRadius, segments);
+    for (let k = 1; k <= cuts; k++) {
+      const mix = k / cuts;
+      refinedLayers.push({
+        z: previous.z + (current.z - previous.z) * mix,
+        radiusAt: (theta) => previous.radiusAt(theta) + (current.radiusAt(theta) - previous.radiusAt(theta)) * mix,
+      });
+    }
+  }
   const positions: number[] = [];
   const indices: number[] = [];
-  for (const layer of layers) {
+  for (const layer of refinedLayers) {
     for (let j = 0; j < segments; j++) {
       addVertexForProfile(positions, layer.radiusAt, (j / segments) * Math.PI * 2, layer.z);
     }
   }
-  for (let i = 0; i < layers.length - 1; i++) {
+  for (let i = 0; i < refinedLayers.length - 1; i++) {
     const a0 = i * segments;
     const b0 = (i + 1) * segments;
     for (let j = 0; j < segments; j++) {
@@ -866,7 +909,7 @@ function buildThreadedCap(p: PartParams, material: THREE.Material): THREE.Group 
 function buildThreadedCylinder(p: PartParams, material: THREE.Material): THREE.Group {
   const group = new THREE.Group();
   const outerR = p.outerDiameter / 2;
-  const segments = Math.max(48, p.resolution);
+  const segments = meshRadialSegments(p, 48);
   // Solid = no interior; a solid cylinder can only carry an external
   // thread (or none). A hollow tube can carry external or internal.
   const rawThread = p.cylinderThread ?? "external";
@@ -908,12 +951,36 @@ function buildThreadedCylinder(p: PartParams, material: THREE.Material): THREE.G
   const pos: number[] = [];
   const tri = (a: Pt3, b: Pt3, c: Pt3) => { pos.push(...a, ...b, ...c); };
   const quad = (a: Pt3, b: Pt3, c: Pt3, d: Pt3) => { tri(a, b, c); tri(a, c, d); };
+  const axialSegments = meshAxialSegments(L, Math.max(rOut, innerR), segments);
+  const mixPoint = (a: Pt3, b: Pt3, t: number): Pt3 => [
+    a[0] + (b[0] - a[0]) * t,
+    a[1] + (b[1] - a[1]) * t,
+    a[2] + (b[2] - a[2]) * t,
+  ];
 
   for (let i = 0; i < segments; i++) {
     const j = (i + 1) % segments;
-    quad(ringBotOut[i], ringBotOut[j], ringTopOut[j], ringTopOut[i]);
+    for (let k = 0; k < axialSegments; k++) {
+      const t0 = k / axialSegments;
+      const t1 = (k + 1) / axialSegments;
+      quad(
+        mixPoint(ringBotOut[i], ringTopOut[i], t0),
+        mixPoint(ringBotOut[j], ringTopOut[j], t0),
+        mixPoint(ringBotOut[j], ringTopOut[j], t1),
+        mixPoint(ringBotOut[i], ringTopOut[i], t1)
+      );
+    }
     if (innerR > 0) {
-      quad(ringBotIn[j], ringBotIn[i], ringTopIn[i], ringTopIn[j]);
+      for (let k = 0; k < axialSegments; k++) {
+        const t0 = k / axialSegments;
+        const t1 = (k + 1) / axialSegments;
+        quad(
+          mixPoint(ringBotIn[j], ringTopIn[j], t0),
+          mixPoint(ringBotIn[i], ringTopIn[i], t0),
+          mixPoint(ringBotIn[i], ringTopIn[i], t1),
+          mixPoint(ringBotIn[j], ringTopIn[j], t1)
+        );
+      }
       quad(ringTopIn[i], ringTopOut[i], ringTopOut[j], ringTopIn[j]);
       quad(ringBotOut[i], ringBotIn[i], ringBotIn[j], ringBotOut[j]);
     } else {
@@ -944,7 +1011,7 @@ function buildThreadedCylinder(p: PartParams, material: THREE.Material): THREE.G
 function buildTube(p: PartParams, material: THREE.Material): THREE.Group {
   const group = new THREE.Group();
   group.name = "Tube";
-  const segments = Math.max(48, p.resolution * 2);
+  const segments = meshRadialSegments(p, 48, 2);
   const L = Math.max(1, p.length);
   const rTopOut = Math.max(1, (p.tubeDiameterA ?? 30) / 2);
   const rBotOut = Math.max(1, (p.tubeDiameterB ?? 20) / 2);
@@ -991,13 +1058,37 @@ function buildTube(p: PartParams, material: THREE.Material): THREE.Group {
   const pos: number[] = [];
   const tri = (a: Pt, b: Pt, c: Pt) => { pos.push(...a, ...b, ...c); };
   const quad = (a: Pt, b: Pt, c: Pt, d: Pt) => { tri(a, b, c); tri(a, c, d); };
+  const axialSegments = meshAxialSegments(L, Math.max(rTopOut, rBotOut), segments);
+  const mixPoint = (a: Pt, b: Pt, t: number): Pt => [
+    a[0] + (b[0] - a[0]) * t,
+    a[1] + (b[1] - a[1]) * t,
+    a[2] + (b[2] - a[2]) * t,
+  ];
 
   for (let i = 0; i < segments; i++) {
     const j = (i + 1) % segments;
     // pared exterior (normal hacia fuera)
-    quad(ringBotOut[i], ringBotOut[j], ringTopOut[j], ringTopOut[i]);
+    for (let k = 0; k < axialSegments; k++) {
+      const t0 = k / axialSegments;
+      const t1 = (k + 1) / axialSegments;
+      quad(
+        mixPoint(ringBotOut[i], ringTopOut[i], t0),
+        mixPoint(ringBotOut[j], ringTopOut[j], t0),
+        mixPoint(ringBotOut[j], ringTopOut[j], t1),
+        mixPoint(ringBotOut[i], ringTopOut[i], t1)
+      );
+    }
     // pared interior (winding invertido)
-    quad(ringBotIn[j], ringBotIn[i], ringTopIn[i], ringTopIn[j]);
+    for (let k = 0; k < axialSegments; k++) {
+      const t0 = k / axialSegments;
+      const t1 = (k + 1) / axialSegments;
+      quad(
+        mixPoint(ringBotIn[j], ringTopIn[j], t0),
+        mixPoint(ringBotIn[i], ringTopIn[i], t0),
+        mixPoint(ringBotIn[i], ringTopIn[i], t1),
+        mixPoint(ringBotIn[j], ringTopIn[j], t1)
+      );
+    }
     // corona superior
     quad(ringTopIn[i], ringTopOut[i], ringTopOut[j], ringTopIn[j]);
     // corona inferior
@@ -1085,15 +1176,17 @@ function buildClevis(p: PartParams, material: THREE.Material): THREE.Group {
 
   if (style === "pin") {
     const L = Math.max(2, gap + 2 * t + 2);
+    const pinSegments = meshRadialSegments(p, 32);
     const pin = new THREE.Mesh(
-      new THREE.CylinderGeometry(pinD / 2 - 0.1, pinD / 2 - 0.1, L, Math.max(32, p.resolution)),
+      new THREE.CylinderGeometry(pinD / 2 - 0.1, pinD / 2 - 0.1, L, pinSegments, meshAxialSegments(L, pinD / 2, pinSegments)),
       material
     );
     pin.rotation.z = Math.PI / 2; // eje a lo largo de X
     pin.position.set(0, 0, pinD / 2);
     group.add(pin);
     const headR = pinD * 0.8;
-    const head = new THREE.Mesh(new THREE.CylinderGeometry(headR, headR, Math.max(1, pinD * 0.35), 32), material);
+    const headH = Math.max(1, pinD * 0.35);
+    const head = new THREE.Mesh(new THREE.CylinderGeometry(headR, headR, headH, 32, meshAxialSegments(headH, headR, 32)), material);
     head.rotation.z = Math.PI / 2;
     head.position.set(-L / 2 - Math.max(1, pinD * 0.35) / 2, 0, pinD / 2);
     group.add(head);

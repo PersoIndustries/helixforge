@@ -65,7 +65,7 @@ const PART_TYPES: { type: PartType; label: string; short: string; Icon: React.Co
 
 const partMeta = (t: PartType) => PART_TYPES.find((p) => p.type === t)!;
 
-function Section({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
+function Section({ title, children, defaultOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="space-y-2 rounded-md border border-border bg-panel/60 p-3">
@@ -868,7 +868,7 @@ function HelixForge() {
 
           {/* Parameters for selected */}
           <ScrollArea className="min-h-0 flex-1">
-            <div className="space-y-3 p-3">
+            <div key={selected?.id ?? "assembly"} className="space-y-3 p-3">
               {!selected ? (
                 <div className="rounded-md border border-dashed border-border bg-panel/30 p-6 text-center">
                   <Layers className="mx-auto mb-2 h-6 w-6 text-muted-foreground" />
