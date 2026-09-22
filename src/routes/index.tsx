@@ -142,6 +142,12 @@ function HelixForge() {
   });
   const [diagReport, setDiagReport] = useState<DiagnosticReport | null>(null);
   const [diagScope, setDiagScope] = useState<"selected" | "assembly">("selected");
+  const [metricsOpen, setMetricsOpen] = useState(false);
+  const [metricsMode, setMetricsMode] = useState<"tris" | "quads" | "perPart">("tris");
+  const [meshMetrics, setMeshMetrics] = useState<{
+    tris: number; verts: number; meshes: number;
+    perPart: { id: string; name: string; tris: number; verts: number; visible: boolean }[];
+  }>({ tris: 0, verts: 0, meshes: 0, perPart: [] });
 
   // Group cache: id + params signature -> group
   const groupCacheRef = useRef<Map<string, { sig: string; group: THREE.Group }>>(new Map());
