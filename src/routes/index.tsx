@@ -220,6 +220,35 @@ function HelixForge() {
     return () => cancelAnimationFrame(raf);
   }, [diagOpen, diagOpts, diagScope, selectedId, parts, statsTick]);
 
+  // Mesh metrics (triangles / vertices per part and total)
+  useEffect(() => {
+    const v = viewerRef.current;
+    if (!metricsOpen || !v) return;
+    const raf = requestAnimationFrame(() => {
+      let tris = 0, verts = 0, meshes = 0;
+      const perPart: { id: string; name: string; tris: number; verts: number; visible: boolean }[] = [];
+      for (const p of parts) {
+        const g = v.getPartGroup(p.id);
+        let pt = 0, pv = 0;
+        g?.traverse((c) => {
+          const m = c as THREE.Mesh;
+          if (!m.isMesh || !m.geometry) return;
+          const geo = m.geometry as THREE.BufferGeometry;
+          const pos = geo.getAttribute("position");
+          if (!pos) return;
+          meshes += 1;
+          pv += pos.count;
+          pt += geo.index ? geo.index.count / 3 : pos.count / 3;
+        });
+        perPart.push({ id: p.id, name: p.name, tris: Math.round(pt), verts: pv, visible: p.visible });
+        if (p.visible) { tris += pt; verts += pv; }
+      }
+      setMeshMetrics({ tris: Math.round(tris), verts, meshes, perPart });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [metricsOpen, parts, statsTick]);
+
+
   // Part management
   const nextName = (t: PartType) => {
     const meta = partMeta(t);
