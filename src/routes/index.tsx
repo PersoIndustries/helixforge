@@ -7,7 +7,7 @@ import {
   Plus, Eye, EyeOff, Copy, Trash2, Focus, GripVertical, Pencil, Check, X,
   ChevronDown, ChevronRight, Upload, FileJson, StickyNote,
   ClipboardCopy, ClipboardPaste, Stethoscope, AlertTriangle, Cone, Link2,
-  RectangleVertical, RectangleHorizontal, Box, Scan, Frame, CircleDashed, Palette,
+  RectangleVertical, RectangleHorizontal, Box, Scan, Frame, CircleDashed, Palette, Triangle,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
