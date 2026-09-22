@@ -1414,6 +1414,15 @@ function HelixForge() {
             >
               <Stethoscope className="h-3.5 w-3.5" />
             </Toggle>
+            <Toggle
+              pressed={metricsOpen}
+              onPressedChange={setMetricsOpen}
+              size="sm"
+              className="h-7 px-2 data-[state=on]:bg-primary/20 data-[state=on]:text-primary"
+              title="Estadísticas de malla: triángulos, quads y detalle por pieza"
+            >
+              <Triangle className="h-3.5 w-3.5" />
+            </Toggle>
             <div className="ml-auto text-[10px] text-muted-foreground">
               Clic sobre una pieza para seleccionarla · doble-clic en la lista → focus
             </div>
