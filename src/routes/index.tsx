@@ -7,7 +7,7 @@ import {
   Plus, Eye, EyeOff, Copy, Trash2, Focus, GripVertical, Pencil, Check, X,
   ChevronDown, ChevronRight, Upload, FileJson, StickyNote,
   ClipboardCopy, ClipboardPaste, Stethoscope, AlertTriangle, Cone, Link2,
-  RectangleVertical, RectangleHorizontal, Box, Scan, Frame, CircleDashed, Palette,
+  RectangleVertical, RectangleHorizontal, Box, Scan, Frame, CircleDashed, Palette, Triangle,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -142,6 +142,12 @@ function HelixForge() {
   });
   const [diagReport, setDiagReport] = useState<DiagnosticReport | null>(null);
   const [diagScope, setDiagScope] = useState<"selected" | "assembly">("selected");
+  const [metricsOpen, setMetricsOpen] = useState(false);
+  const [metricsMode, setMetricsMode] = useState<"tris" | "quads" | "perPart">("tris");
+  const [meshMetrics, setMeshMetrics] = useState<{
+    tris: number; verts: number; meshes: number;
+    perPart: { id: string; name: string; tris: number; verts: number; visible: boolean }[];
+  }>({ tris: 0, verts: 0, meshes: 0, perPart: [] });
 
   // Group cache: id + params signature -> group
   const groupCacheRef = useRef<Map<string, { sig: string; group: THREE.Group }>>(new Map());
@@ -213,6 +219,35 @@ function HelixForge() {
     });
     return () => cancelAnimationFrame(raf);
   }, [diagOpen, diagOpts, diagScope, selectedId, parts, statsTick]);
+
+  // Mesh metrics (triangles / vertices per part and total)
+  useEffect(() => {
+    const v = viewerRef.current;
+    if (!metricsOpen || !v) return;
+    const raf = requestAnimationFrame(() => {
+      let tris = 0, verts = 0, meshes = 0;
+      const perPart: { id: string; name: string; tris: number; verts: number; visible: boolean }[] = [];
+      for (const p of parts) {
+        const g = v.getPartGroup(p.id);
+        let pt = 0, pv = 0;
+        g?.traverse((c) => {
+          const m = c as THREE.Mesh;
+          if (!m.isMesh || !m.geometry) return;
+          const geo = m.geometry as THREE.BufferGeometry;
+          const pos = geo.getAttribute("position");
+          if (!pos) return;
+          meshes += 1;
+          pv += pos.count;
+          pt += geo.index ? geo.index.count / 3 : pos.count / 3;
+        });
+        perPart.push({ id: p.id, name: p.name, tris: Math.round(pt), verts: pv, visible: p.visible });
+        if (p.visible) { tris += pt; verts += pv; }
+      }
+      setMeshMetrics({ tris: Math.round(tris), verts, meshes, perPart });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [metricsOpen, parts, statsTick]);
+
 
   // Part management
   const nextName = (t: PartType) => {
@@ -1379,6 +1414,15 @@ function HelixForge() {
             >
               <Stethoscope className="h-3.5 w-3.5" />
             </Toggle>
+            <Toggle
+              pressed={metricsOpen}
+              onPressedChange={setMetricsOpen}
+              size="sm"
+              className="h-7 px-2 data-[state=on]:bg-primary/20 data-[state=on]:text-primary"
+              title="Estadísticas de malla: triángulos, quads y detalle por pieza"
+            >
+              <Triangle className="h-3.5 w-3.5" />
+            </Toggle>
             <div className="ml-auto text-[10px] text-muted-foreground">
               Clic sobre una pieza para seleccionarla · doble-clic en la lista → focus
             </div>
@@ -1386,6 +1430,67 @@ function HelixForge() {
 
           <div className="relative min-h-0 flex-1">
             <Viewer3D ref={viewerRef} onPick={(id) => setSelectedId(id)} />
+            {metricsOpen && (
+              <div className="pointer-events-auto absolute left-3 top-3 w-[250px] rounded-md border border-primary/40 bg-background/95 p-3 text-xs shadow-lg backdrop-blur">
+                <div className="mb-2 flex items-center gap-2">
+                  <Triangle className="h-4 w-4 text-primary" />
+                  <span className="font-semibold uppercase tracking-wider text-primary">Malla</span>
+                  <Button variant="ghost" size="sm" className="ml-auto h-6 w-6 p-0" onClick={() => setMetricsOpen(false)}>
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+                <Select value={metricsMode} onValueChange={(v) => setMetricsMode(v as typeof metricsMode)}>
+                  <SelectTrigger className="mb-2 h-7 bg-input text-[11px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="tris">Triángulos</SelectItem>
+                    <SelectItem value="quads">Quads (equivalente)</SelectItem>
+                    <SelectItem value="perPart">Triángulos por pieza</SelectItem>
+                  </SelectContent>
+                </Select>
+                {metricsMode === "perPart" ? (
+                  <div className="max-h-[220px] space-y-1 overflow-y-auto pr-1">
+                    {meshMetrics.perPart.length === 0 && (
+                      <div className="text-[10px] text-muted-foreground">Sin piezas en escena.</div>
+                    )}
+                    {meshMetrics.perPart.map((m) => (
+                      <button
+                        key={m.id}
+                        onClick={() => setSelectedId(m.id)}
+                        className={`flex w-full items-center justify-between gap-2 rounded px-1 py-0.5 text-left hover:bg-muted/50 ${m.visible ? "" : "opacity-50"} ${selectedId === m.id ? "bg-primary/10 text-primary" : ""}`}
+                      >
+                        <span className="truncate">{m.name}</span>
+                        <span className="shrink-0 font-mono text-[10px]">{m.tris.toLocaleString("es-ES")}</span>
+                      </button>
+                    ))}
+                    <div className="mt-1 flex items-center justify-between border-t border-border/50 pt-1 font-mono text-[10px] text-muted-foreground">
+                      <span>Total visible</span>
+                      <span className="text-foreground">{meshMetrics.tris.toLocaleString("es-ES")}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-1 font-mono text-[11px]">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">{metricsMode === "quads" ? "Quads" : "Triángulos"}</span>
+                      <span className="text-foreground">
+                        {(metricsMode === "quads" ? Math.round(meshMetrics.tris / 2) : meshMetrics.tris).toLocaleString("es-ES")}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Vértices</span>
+                      <span className="text-foreground">{meshMetrics.verts.toLocaleString("es-ES")}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Mallas</span>
+                      <span className="text-foreground">{meshMetrics.meshes.toLocaleString("es-ES")}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Piezas visibles</span>
+                      <span className="text-foreground">{meshMetrics.perPart.filter((m) => m.visible).length}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             {diagOpen && (
               <div className="pointer-events-auto absolute right-3 top-3 w-[300px] rounded-md border border-destructive/40 bg-background/95 p-3 text-xs shadow-lg backdrop-blur">
                 <div className="mb-2 flex items-center gap-2">
