@@ -307,8 +307,8 @@ function HelixForge() {
     if (!text.trim()) { toast.error(tr("El portapapeles está vacío")); return; }
     let data: unknown;
     try { data = JSON.parse(text); } catch { toast.error(tr("El portapapeles no contiene JSON válido")); return; }
-    const obj = data as { format?: string; part?: { type?: PartType; name?: string; params?: Partial<PartParams>{tr("; visible?: boolean; transform?: Partial")}<PartTransform>; color?: string | null }; parts?: unknown };
-    const rp = obj?.part ?? (Array.isArray(obj?.parts) ? (obj.parts as { type?: PartType; name?: string; params?: Partial<PartParams>{tr("; visible?: boolean; transform?: Partial")}<PartTransform>; color?: string | null }[])[0] : undefined);
+    const obj = data as { format?: string; part?: { type?: PartType; name?: string; params?: Partial<PartParams>; visible?: boolean; transform?: Partial<PartTransform>; color?: string | null }; parts?: unknown };
+    const rp = obj?.part ?? (Array.isArray(obj?.parts) ? (obj.parts as { type?: PartType; name?: string; params?: Partial<PartParams>; visible?: boolean; transform?: Partial<PartTransform>; color?: string | null }[])[0] : undefined);
     if (!rp || !rp.type || !(rp.type in DEFAULT_PARAMS)) {
       toast.error(tr("El portapapeles no contiene una pieza válida"));
       return;
@@ -556,7 +556,7 @@ function HelixForge() {
         if (!type || !(type in DEFAULT_PARAMS)) continue;
         valid.push({
           id: crypto.randomUUID(),
-          {tr("type,")}
+          type,
           name: typeof rp.name === "string" ? rp.name : `Pieza ${valid.length + 1}`,
           params: { ...DEFAULT_PARAMS[type], ...(rp.params ?? {}) },
           visible: rp.visible !== false,
@@ -796,7 +796,7 @@ function HelixForge() {
                   return (
                     <div
                       key={p.id}
-                      {tr("draggable")}
+                      draggable
                       onDragStart={(e) => onDragStart(e, p.id)}
                       onDragOver={(e) => onDragOver(e, p.id)}
                       onDragLeave={() => setDragOverId(null)}
@@ -804,7 +804,7 @@ function HelixForge() {
                       onClick={() => setSelectedId(p.id)}
                       onDoubleClick={() => viewerRef.current?.focusOn(p.id)}
                       className={`group flex items-center gap-1.5 rounded border px-2 py-1.5 text-xs transition-colors cursor-pointer ${
-                        {tr("active")}
+                        active
                           ? "border-primary bg-primary/15 text-primary"
                           : "border-border bg-input/40 text-foreground hover:border-primary/40"
                       } ${drop ? "ring-1 ring-primary" : ""} ${!p.visible ? "opacity-50" : ""}`}
@@ -815,7 +815,7 @@ function HelixForge() {
                       <meta.Icon className={`h-3.5 w-3.5 shrink-0 ${active ? "text-primary" : "text-muted-foreground"}`} />
                       {editingId === p.id ? (
                         <Input
-                          {tr("autoFocus")}
+                          autoFocus
                           value={p.name}
                           onChange={(e) => renamePart(p.id, e.target.value)}
                           onBlur={() => setEditingId(null)}
@@ -1303,7 +1303,7 @@ function HelixForge() {
                                 onClick={() => updateSelectedParams("cylinderThread", opt.v)}
                                 title={opt.disabled ? "Solo disponible en modo Tubo" : undefined}
                                 className={`flex-1 rounded border py-1 text-xs transition-colors ${
-                                  {tr("active")}
+                                  active
                                     ? "border-primary bg-primary/20 text-primary"
                                     : opt.disabled
                                       ? "cursor-not-allowed border-border/50 bg-input/40 text-muted-foreground/40"
