@@ -214,7 +214,7 @@ function HelixForge() {
         setDiagReport(report);
       } catch (e) {
         console.error("Diagnóstico de malla falló", e);
-        toast.error("El diagnóstico de malla falló");
+        toast.error(tr("El diagnóstico de malla falló"));
       }
     });
     return () => cancelAnimationFrame(raf);
@@ -290,9 +290,9 @@ function HelixForge() {
     const text = JSON.stringify(payload, null, 2);
     try {
       await navigator.clipboard.writeText(text);
-      toast.success("Pieza copiada al portapapeles", { description: p.name });
+      toast.success(tr("Pieza copiada al portapapeles"), { description: p.name });
     } catch {
-      toast.error("No se pudo copiar al portapapeles");
+      toast.error(tr("No se pudo copiar al portapapeles"));
     }
   };
 
@@ -301,21 +301,21 @@ function HelixForge() {
     try {
       text = await navigator.clipboard.readText();
     } catch {
-      toast.error("No se pudo leer el portapapeles", { description: "Permite el acceso al portapapeles del navegador" });
+      toast.error(tr("No se pudo leer el portapapeles"), { description: tr("Permite el acceso al portapapeles del navegador") });
       return;
     }
-    if (!text.trim()) { toast.error("El portapapeles está vacío"); return; }
+    if (!text.trim()) { toast.error(tr("El portapapeles está vacío")); return; }
     let data: unknown;
-    try { data = JSON.parse(text); } catch { toast.error("El portapapeles no contiene JSON válido"); return; }
+    try { data = JSON.parse(text); } catch { toast.error(tr("El portapapeles no contiene JSON válido")); return; }
     const obj = data as { format?: string; part?: { type?: PartType; name?: string; params?: Partial<PartParams>; visible?: boolean; transform?: Partial<PartTransform>; color?: string | null }; parts?: unknown };
     const rp = obj?.part ?? (Array.isArray(obj?.parts) ? (obj.parts as { type?: PartType; name?: string; params?: Partial<PartParams>; visible?: boolean; transform?: Partial<PartTransform>; color?: string | null }[])[0] : undefined);
     if (!rp || !rp.type || !(rp.type in DEFAULT_PARAMS)) {
-      toast.error("El portapapeles no contiene una pieza válida");
+      toast.error(tr("El portapapeles no contiene una pieza válida"));
       return;
     }
     if (mode === "apply" && selected) {
       if (selected.type !== rp.type) {
-        toast.error("Los tipos de pieza no coinciden", { description: `Seleccionada: ${selected.type} · Portapapeles: ${rp.type}` });
+        toast.error(tr("Los tipos de pieza no coinciden"), { description: `Seleccionada: ${selected.type} · Portapapeles: ${rp.type}` });
         return;
       }
       setParts((ps) => ps.map((p) => p.id === selected.id ? {
@@ -323,7 +323,7 @@ function HelixForge() {
         params: { ...DEFAULT_PARAMS[rp.type!], ...(rp.params ?? {}) },
         transform: { ...p.transform, ...(rp.transform ?? {}) },
       } : p));
-      toast.success("Configuración aplicada a la pieza seleccionada");
+      toast.success(tr("Configuración aplicada a la pieza seleccionada"));
       return;
     }
     const newId = crypto.randomUUID();
@@ -340,7 +340,7 @@ function HelixForge() {
       },
     ]);
     setSelectedId(newId);
-    toast.success("Pieza pegada desde el portapapeles");
+    toast.success(tr("Pieza pegada desde el portapapeles"));
   };
 
 
@@ -399,46 +399,46 @@ function HelixForge() {
   // Validation for selected
   const validation = useMemo(() => {
     if (!selected) return [] as { level: "warn" | "error" | "ok"; text: string }[];
-    if (selected.type === "note") return [{ level: "ok" as const, text: "Nota del proyecto (sin geometría)." }];
+    if (selected.type === "note") return [{ level: "ok" as const, text: tr("Nota del proyecto (sin geometría).") }];
     const p = selected.params;
     const t = selected.type;
     const msgs: { level: "warn" | "error" | "ok"; text: string }[] = [];
     const generic = t !== "tube" && t !== "clevis";
-    if (generic && p.innerDiameter >= p.outerDiameter) msgs.push({ level: "error", text: "El diámetro interior debe ser menor que el exterior." });
-    if (generic && p.pitch <= 0) msgs.push({ level: "error", text: "El paso debe ser positivo." });
+    if (generic && p.innerDiameter >= p.outerDiameter) msgs.push({ level: "error", text: tr("El diámetro interior debe ser menor que el exterior.") });
+    if (generic && p.pitch <= 0) msgs.push({ level: "error", text: tr("El paso debe ser positivo.") });
     if (t === "clevis") {
       const style = p.clevisStyle ?? "fork";
       const w = p.lugWidth ?? 20, pd = p.pinDiameter ?? 8, arm = p.armLength ?? 28;
-      if (pd >= w - 1.5) msgs.push({ level: "error", text: "El agujero es demasiado grande para el ancho de la oreja: deja al menos 1,5 mm de material." });
-      if (arm < w / 2) msgs.push({ level: "warn", text: "El brazo es más corto que el radio del ojo: la oreja queda muy compacta." });
-      if (style === "fork" && (p.clevisGap ?? 10) < 1) msgs.push({ level: "warn", text: "La separación entre orejas es muy pequeña." });
-      if (style !== "pin" && (p.baseThickness ?? 6) < 1.5) msgs.push({ level: "warn", text: "Base muy fina: puede romperse al aplicar carga." });
+      if (pd >= w - 1.5) msgs.push({ level: "error", text: tr("El agujero es demasiado grande para el ancho de la oreja: deja al menos 1,5 mm de material.") });
+      if (arm < w / 2) msgs.push({ level: "warn", text: tr("El brazo es más corto que el radio del ojo: la oreja queda muy compacta.") });
+      if (style === "fork" && (p.clevisGap ?? 10) < 1) msgs.push({ level: "warn", text: tr("La separación entre orejas es muy pequeña.") });
+      if (style !== "pin" && (p.baseThickness ?? 6) < 1.5) msgs.push({ level: "warn", text: tr("Base muy fina: puede romperse al aplicar carga.") });
     }
     if (t === "tube") {
       const dA = p.tubeDiameterA ?? 0;
       const dB = p.tubeDiameterB ?? 0;
       const wall = p.wallThickness ?? 0;
-      if (dA <= 0 || dB <= 0) msgs.push({ level: "error", text: "Los diámetros A y B deben ser positivos." });
-      if (wall <= 0) msgs.push({ level: "error", text: "El grosor de pared debe ser positivo." });
-      if (wall * 2 >= Math.min(dA, dB)) msgs.push({ level: "error", text: "El grosor es demasiado grande: no queda hueco interior en el extremo menor." });
-      if (wall * 2 >= Math.min(dA, dB) * 0.7) msgs.push({ level: "warn", text: "Pared muy gruesa respecto al diámetro menor: el hueco interior es muy estrecho." });
+      if (dA <= 0 || dB <= 0) msgs.push({ level: "error", text: tr("Los diámetros A y B deben ser positivos.") });
+      if (wall <= 0) msgs.push({ level: "error", text: tr("El grosor de pared debe ser positivo.") });
+      if (wall * 2 >= Math.min(dA, dB)) msgs.push({ level: "error", text: tr("El grosor es demasiado grande: no queda hueco interior en el extremo menor.") });
+      if (wall * 2 >= Math.min(dA, dB) * 0.7) msgs.push({ level: "warn", text: tr("Pared muy gruesa respecto al diámetro menor: el hueco interior es muy estrecho.") });
       const aA = p.tubeAngleA ?? 0, aB = p.tubeAngleB ?? 0;
       const drop = (dA / 2) * Math.abs(Math.tan((aA * Math.PI) / 180)) + (dB / 2) * Math.abs(Math.tan((aB * Math.PI) / 180));
-      if (drop >= p.length) msgs.push({ level: "error", text: "Los cortes inclinados se cruzan: reduce los ángulos o aumenta la longitud." });
-      else if (drop > p.length * 0.7) msgs.push({ level: "warn", text: "Cortes muy inclinados respecto a la longitud: la pieza queda muy afilada en un lado." });
+      if (drop >= p.length) msgs.push({ level: "error", text: tr("Los cortes inclinados se cruzan: reduce los ángulos o aumenta la longitud.") });
+      else if (drop > p.length * 0.7) msgs.push({ level: "warn", text: tr("Cortes muy inclinados respecto a la longitud: la pieza queda muy afilada en un lado.") });
     }
     if (t === "threaded-cylinder") {
       const cA = p.cylinderAngleA ?? 0, cB = p.cylinderAngleB ?? 0;
       const r = p.outerDiameter / 2;
       const drop = r * (Math.abs(Math.tan((cA * Math.PI) / 180)) + Math.abs(Math.tan((cB * Math.PI) / 180)));
-      if (drop >= p.length) msgs.push({ level: "error", text: "Los cortes inclinados se cruzan: reduce los ángulos o aumenta la longitud." });
-      else if (drop > p.length * 0.7) msgs.push({ level: "warn", text: "Cortes muy inclinados: la pieza queda muy afilada en un lado." });
-      if ((cA !== 0 || cB !== 0) && (p.cylinderThread ?? "external") !== "none") msgs.push({ level: "warn", text: "Con cortes inclinados la rosca puede sobresalir de los extremos." });
+      if (drop >= p.length) msgs.push({ level: "error", text: tr("Los cortes inclinados se cruzan: reduce los ángulos o aumenta la longitud.") });
+      else if (drop > p.length * 0.7) msgs.push({ level: "warn", text: tr("Cortes muy inclinados: la pieza queda muy afilada en un lado.") });
+      if ((cA !== 0 || cB !== 0) && (p.cylinderThread ?? "external") !== "none") msgs.push({ level: "warn", text: tr("Con cortes inclinados la rosca puede sobresalir de los extremos.") });
     }
-    if (p.pitch < p.wireThickness && t.includes("spring")) msgs.push({ level: "warn", text: "Paso menor que grosor: las espiras se solapan." });
-    if (t === "screw" && (p.threadLength ?? 0) > p.length) msgs.push({ level: "warn", text: "La longitud de rosca supera la del tornillo." });
-    if (p.resolution < 24) msgs.push({ level: "warn", text: "Resolución baja: la rosca puede verse facetada." });
-    if (msgs.length === 0) msgs.push({ level: "ok", text: "Parámetros válidos." });
+    if (p.pitch < p.wireThickness && t.includes("spring")) msgs.push({ level: "warn", text: tr("Paso menor que grosor: las espiras se solapan.") });
+    if (t === "screw" && (p.threadLength ?? 0) > p.length) msgs.push({ level: "warn", text: tr("La longitud de rosca supera la del tornillo.") });
+    if (p.resolution < 24) msgs.push({ level: "warn", text: tr("Resolución baja: la rosca puede verse facetada.") });
+    if (msgs.length === 0) msgs.push({ level: "ok", text: tr("Parámetros válidos.") });
     return msgs;
   }, [selected]);
 
@@ -522,7 +522,7 @@ function HelixForge() {
 
   const doExportJSON = (scope: "all" | "selected") => {
     const list = scope === "selected" && selected ? [selected] : parts;
-    if (list.length === 0) { toast.error("No hay piezas para exportar"); return; }
+    if (list.length === 0) { toast.error(tr("No hay piezas para exportar")); return; }
     const payload = {
       format: "helixforge-project",
       version: 1,
@@ -571,7 +571,7 @@ function HelixForge() {
         description: mode === "replace" ? "Proyecto reemplazado" : "Añadidas al proyecto",
       });
     } catch (err) {
-      toast.error("Error al importar", { description: err instanceof Error ? err.message : String(err) });
+      toast.error(tr("Error al importar"), { description: err instanceof Error ? err.message : String(err) });
     }
   };
 
@@ -606,9 +606,9 @@ function HelixForge() {
           </div>
           <div>
             <h1 className="text-sm font-semibold tracking-tight">
-              HelixForge <span className="ml-1 text-[10px] font-normal text-muted-foreground">v1.1 · Multipieza</span>
+              HelixForge <span className="ml-1 text-[10px] font-normal text-muted-foreground">{tr("v1.1 · Multipieza")}</span>
             </h1>
-            <p className="text-[11px] text-muted-foreground leading-none">Ensamblajes paramétricos helicoidales</p>
+            <p className="text-[11px] text-muted-foreground leading-none">{tr("Ensamblajes paramétricos helicoidales")}</p>
           </div>
           <Separator orientation="vertical" className="mx-2 h-6" />
           <Badge variant="outline" className="border-primary/50 text-primary">
@@ -625,11 +625,11 @@ function HelixForge() {
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="gap-2">
                 <Plus className="h-3.5 w-3.5" />
-                Añadir pieza
+                {tr("Añadir pieza")}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>Tipo de pieza</DropdownMenuLabel>
+              <DropdownMenuLabel>{tr("Tipo de pieza")}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {PART_TYPES.map(({ type, label, Icon }) => (
                 <DropdownMenuItem key={type} onClick={() => addPart(type)}>
@@ -643,11 +643,11 @@ function HelixForge() {
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="gap-2">
                 <Sparkles className="h-3.5 w-3.5" />
-                Presets
+                {tr("Presets")}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>Añadir preset</DropdownMenuLabel>
+              <DropdownMenuLabel>{tr("Añadir preset")}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {PRESETS.map((pr) => (
                 <DropdownMenuItem key={pr.id} onClick={() => loadPreset(pr.id)}>
@@ -658,19 +658,19 @@ function HelixForge() {
           </DropdownMenu>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2" title="Importar proyecto JSON">
+              <Button variant="outline" size="sm" className="gap-2" title={tr("Importar proyecto JSON")}>
                 <Upload className="h-3.5 w-3.5" />
-                Importar
+                {tr("Importar")}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>Importar proyecto (.json)</DropdownMenuLabel>
+              <DropdownMenuLabel>{tr("Importar proyecto (.json)")}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => { if (fileInputRef.current) { fileInputRef.current.dataset.mode = "append"; openImportDialog(); } }}>
-                Añadir al proyecto actual
+                {tr("Añadir al proyecto actual")}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => { if (fileInputRef.current) { fileInputRef.current.dataset.mode = "replace"; openImportDialog(); } }}>
-                Reemplazar proyecto actual
+                {tr("Reemplazar proyecto actual")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -690,29 +690,29 @@ function HelixForge() {
             <DropdownMenuTrigger asChild>
               <Button size="sm" className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
                 <Download className="h-3.5 w-3.5" />
-                Exportar
+                {tr("Exportar")}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64">
               <DropdownMenuLabel className="flex items-center gap-1.5">
                 <FileJson className="h-3.5 w-3.5" /> Proyecto (JSON)
               </DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => doExportJSON("all")}>Proyecto completo (.json)</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => doExportJSON("all")}>{tr("Proyecto completo (.json)")}</DropdownMenuItem>
               {selected && (
                 <DropdownMenuItem onClick={() => doExportJSON("selected")}>Solo seleccionada — {selected.name} (.json)</DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
-              <DropdownMenuLabel>Ensamblaje completo</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => doExportAssembly("stl")}>STL binario (todo junto)</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => doExportAssembly("obj")}>OBJ (todo junto)</DropdownMenuItem>
+              <DropdownMenuLabel>{tr("Ensamblaje completo")}</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => doExportAssembly("stl")}>{tr("STL binario (todo junto)")}</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => doExportAssembly("obj")}>{tr("OBJ (todo junto)")}</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuLabel>Cada pieza por separado</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => doExportEach("stl")}>STL — un archivo por pieza</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => doExportEach("obj")}>OBJ — un archivo por pieza</DropdownMenuItem>
+              <DropdownMenuLabel>{tr("Cada pieza por separado")}</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => doExportEach("stl")}>{tr("STL — un archivo por pieza")}</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => doExportEach("obj")}>{tr("OBJ — un archivo por pieza")}</DropdownMenuItem>
               {selected && (
                 <>
                   <DropdownMenuSeparator />
-                  <DropdownMenuLabel>Solo seleccionada</DropdownMenuLabel>
+                  <DropdownMenuLabel>{tr("Solo seleccionada")}</DropdownMenuLabel>
                   <DropdownMenuItem onClick={() => doExportSelected("stl")}>STL — {selected.name}</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => doExportSelected("obj")}>OBJ — {selected.name}</DropdownMenuItem>
                 </>
@@ -734,42 +734,42 @@ function HelixForge() {
                 <Layers className="h-3 w-3" /> Piezas
               </div>
               <div className="flex items-center gap-1">
-                <Button size="sm" variant="ghost" className="h-6 px-2 text-[10px]" onClick={() => setSelectedId(null)} title="Deseleccionar">
-                  Ninguna
+                <Button size="sm" variant="ghost" className="h-6 px-2 text-[10px]" onClick={() => setSelectedId(null)} title={tr("Deseleccionar")}>
+                  {tr("Ninguna")}
                 </Button>
-                <Button size="sm" variant="ghost" className="h-6 px-2" title="Centrar vista en todo" onClick={() => viewerRef.current?.setView("fit")}>
+                <Button size="sm" variant="ghost" className="h-6 px-2" title={tr("Centrar vista en todo")} onClick={() => viewerRef.current?.setView("fit")}>
                   <Focus className="h-3 w-3" />
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button size="sm" variant="ghost" className="h-6 px-2 text-primary hover:bg-primary/10" title="Pegar pieza del portapapeles">
+                    <Button size="sm" variant="ghost" className="h-6 px-2 text-primary hover:bg-primary/10" title={tr("Pegar pieza del portapapeles")}>
                       <ClipboardPaste className="h-3.5 w-3.5" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-64">
-                    <DropdownMenuLabel>Pegar desde portapapeles</DropdownMenuLabel>
+                    <DropdownMenuLabel>{tr("Pegar desde portapapeles")}</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => pastePartFromClipboard("new")}>
                       <Plus className="mr-2 h-4 w-4" />
-                      Como pieza nueva
+                      {tr("Como pieza nueva")}
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => pastePartFromClipboard("apply")}
                       disabled={!selected}
                     >
                       <ClipboardPaste className="mr-2 h-4 w-4" />
-                      Aplicar a la seleccionada
+                      {tr("Aplicar a la seleccionada")}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button size="sm" variant="ghost" className="h-6 px-2 text-primary hover:bg-primary/10" title="Añadir pieza">
+                    <Button size="sm" variant="ghost" className="h-6 px-2 text-primary hover:bg-primary/10" title={tr("Añadir pieza")}>
                       <Plus className="h-3.5 w-3.5" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuLabel>Añadir pieza</DropdownMenuLabel>
+                    <DropdownMenuLabel>{tr("Añadir pieza")}</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     {PART_TYPES.map(({ type, label, Icon }) => (
                       <DropdownMenuItem key={type} onClick={() => addPart(type)}>
@@ -786,7 +786,7 @@ function HelixForge() {
               <div className="space-y-1 px-2 pb-2">
                 {parts.length === 0 && (
                   <div className="p-3 text-center text-[11px] text-muted-foreground">
-                    Sin piezas. Usa <b>Añadir pieza</b> arriba.
+                    Sin piezas. Usa <b>{tr("Añadir pieza")}</b> arriba.
                   </div>
                 )}
                 {parts.map((p) => {
@@ -829,7 +829,7 @@ function HelixForge() {
                       <button
                         onClick={(e) => { e.stopPropagation(); setEditingId(editingId === p.id ? null : p.id); }}
                         className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground"
-                        title="Renombrar"
+                        title={tr("Renombrar")}
                       >
                         <Pencil className="h-3 w-3" />
                       </button>
@@ -838,14 +838,14 @@ function HelixForge() {
                           <button
                             onClick={(e) => e.stopPropagation()}
                             className={`${p.color ? "" : "opacity-0 group-hover:opacity-100"} text-muted-foreground hover:text-primary`}
-                            title="Color de la pieza"
+                            title={tr("Color de la pieza")}
                           >
                             <Palette className="h-3 w-3" style={p.color ? { color: p.color } : undefined} />
                           </button>
                         </PopoverTrigger>
                         <PopoverContent align="end" className="w-44 p-2" onClick={(e) => e.stopPropagation()}>
                           <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                            Color de la pieza
+                            {tr("Color de la pieza")}
                           </div>
                           <div className="grid grid-cols-5 gap-1.5">
                             {PART_COLORS.map((c) => (
@@ -862,7 +862,7 @@ function HelixForge() {
                             onClick={(e) => { e.stopPropagation(); setPartColor(p.id, null); }}
                             className="mt-2 w-full rounded border border-border py-1 text-[11px] text-muted-foreground hover:border-primary/50 hover:text-foreground"
                           >
-                            Sin color
+                            {tr("Sin color")}
                           </button>
                         </PopoverContent>
                       </Popover>
@@ -876,21 +876,21 @@ function HelixForge() {
                       <button
                         onClick={(e) => { e.stopPropagation(); copyPartToClipboard(p.id); }}
                         className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-primary"
-                        title="Copiar configuración al portapapeles"
+                        title={tr("Copiar configuración al portapapeles")}
                       >
                         <ClipboardCopy className="h-3 w-3" />
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); duplicatePart(p.id); }}
                         className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-primary"
-                        title="Duplicar"
+                        title={tr("Duplicar")}
                       >
                         <Copy className="h-3 w-3" />
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); deletePart(p.id); }}
                         className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
-                        title="Eliminar"
+                        title={tr("Eliminar")}
                       >
                         <Trash2 className="h-3 w-3" />
                       </button>
@@ -908,28 +908,28 @@ function HelixForge() {
                 <div className="rounded-md border border-dashed border-border bg-panel/30 p-6 text-center">
                   <Layers className="mx-auto mb-2 h-6 w-6 text-muted-foreground" />
                   <p className="text-xs text-muted-foreground">
-                    Selecciona una pieza de la lista o haz clic sobre ella en el visor 3D para editar sus parámetros.
+                    {tr("Selecciona una pieza de la lista o haz clic sobre ella en el visor 3D para editar sus parámetros.")}
                   </p>
                   <div className="mt-4 text-left text-[10px] text-muted-foreground">
-                    <div className="mb-1 font-semibold uppercase tracking-wider">Ensamblaje</div>
+                    <div className="mb-1 font-semibold uppercase tracking-wider">{tr("Ensamblaje")}</div>
                     <div>Piezas: {parts.length}</div>
                     <div>Visibles: {parts.filter((p) => p.visible).length}</div>
                   </div>
                 </div>
               ) : selected.type === "note" ? (
                 <>
-                  <Section title="Nota del proyecto">
+                  <Section title={tr("Nota del proyecto")}>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-muted-foreground">Contenido</label>
+                      <label className="text-xs font-medium text-muted-foreground">{tr("Contenido")}</label>
                       <textarea
                         value={selected.params.noteText ?? ""}
                         onChange={(e) => updateSelectedParams("noteText", e.target.value)}
-                        placeholder="Escribe aquí notas, TODOs, medidas de referencia, decisiones de diseño…"
+                        placeholder={tr("Escribe aquí notas, TODOs, medidas de referencia, decisiones de diseño…")}
                         className="min-h-[220px] w-full resize-y rounded border border-border bg-input px-2 py-1.5 text-xs font-mono leading-relaxed text-foreground focus:border-primary focus:outline-none"
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-muted-foreground">Color de la etiqueta</label>
+                      <label className="text-xs font-medium text-muted-foreground">{tr("Color de la etiqueta")}</label>
                       <div className="flex gap-1.5">
                         {["#facc15", "#f97316", "#22d3ee", "#a78bfa", "#4ade80", "#f472b6"].map((c) => (
                           <button
@@ -943,7 +943,7 @@ function HelixForge() {
                       </div>
                     </div>
                     <div className="rounded border border-dashed border-border bg-panel/30 p-2 text-[10px] text-muted-foreground">
-                      Las notas no generan geometría 3D. Se guardan e importan/exportan con el proyecto en JSON.
+                      {tr("Las notas no generan geometría 3D. Se guardan e importan/exportan con el proyecto en JSON.")}
                     </div>
                     <div className="text-[10px] text-muted-foreground">
                       Caracteres: {(selected.params.noteText ?? "").length}
@@ -954,48 +954,48 @@ function HelixForge() {
                 <>
 
 
-                  <Section title="Transformación">
-                    <NumberControl label="Vertical (Z)" value={selected.transform.z} min={-200} max={200} step={0.5}
-                      tooltip="Desplazamiento vertical de la pieza. Úsalo para alinear, por ejemplo, un sinfín dentro de una tapa."
+                  <Section title={tr("Transformación")}>
+                    <NumberControl label={tr("Vertical (Z)")} value={selected.transform.z} min={-200} max={200} step={0.5}
+                      tooltip={tr("Desplazamiento vertical de la pieza. Úsalo para alinear, por ejemplo, un sinfín dentro de una tapa.")}
                       onChange={(v) => updateSelectedTransform("z", v)} />
-                    <NumberControl label="Offset X" value={selected.transform.x} min={-200} max={200} step={0.5}
+                    <NumberControl label={tr("Offset X")} value={selected.transform.x} min={-200} max={200} step={0.5}
                       onChange={(v) => updateSelectedTransform("x", v)} />
-                    <NumberControl label="Offset Y" value={selected.transform.y} min={-200} max={200} step={0.5}
+                    <NumberControl label={tr("Offset Y")} value={selected.transform.y} min={-200} max={200} step={0.5}
                       onChange={(v) => updateSelectedTransform("y", v)} />
-                    <NumberControl label="Inclinación X (pitch)" value={selected.transform.rx * 180 / Math.PI} min={-180} max={180} step={1} unit="°"
-                      tooltip="Rotación vertical alrededor del eje X. Útil para tumbar o inclinar la pieza."
+                    <NumberControl label={tr("Inclinación X (pitch)")} value={selected.transform.rx * 180 / Math.PI} min={-180} max={180} step={1} unit="°"
+                      tooltip={tr("Rotación vertical alrededor del eje X. Útil para tumbar o inclinar la pieza.")}
                       onChange={(v) => updateSelectedTransform("rx", v * Math.PI / 180)} />
-                    <NumberControl label="Inclinación Y (roll)" value={selected.transform.ry * 180 / Math.PI} min={-180} max={180} step={1} unit="°"
-                      tooltip="Rotación vertical alrededor del eje Y."
+                    <NumberControl label={tr("Inclinación Y (roll)")} value={selected.transform.ry * 180 / Math.PI} min={-180} max={180} step={1} unit="°"
+                      tooltip={tr("Rotación vertical alrededor del eje Y.")}
                       onChange={(v) => updateSelectedTransform("ry", v * Math.PI / 180)} />
-                    <NumberControl label="Rotación Z (yaw)" value={selected.transform.rz * 180 / Math.PI} min={-180} max={180} step={1} unit="°"
-                      tooltip="Rotación sobre el eje axial de la pieza."
+                    <NumberControl label={tr("Rotación Z (yaw)")} value={selected.transform.rz * 180 / Math.PI} min={-180} max={180} step={1} unit="°"
+                      tooltip={tr("Rotación sobre el eje axial de la pieza.")}
                       onChange={(v) => updateSelectedTransform("rz", v * Math.PI / 180)} />
 
                     <Button size="sm" variant="outline" className="w-full gap-1 text-xs" onClick={() => {
                       setParts((ps) => ps.map((x) => x.id === selected.id ? { ...x, transform: DEFAULT_TRANSFORM() } : x));
                     }}>
-                      Resetear posición
+                      {tr("Resetear posición")}
                     </Button>
                   </Section>
 
                   {t !== "tube" && t !== "clevis" && (
                   <>
 
-                  <Section title="Dimensiones principales">
-                    <NumberControl label="Diámetro exterior" value={p!.outerDiameter} min={1} max={200} step={0.1} tooltip="Diámetro nominal exterior de la pieza." onChange={(v) => updateSelectedParams("outerDiameter", v)} />
-                    <NumberControl label="Diámetro interior" value={p!.innerDiameter} min={0} max={200} step={0.1} tooltip="Diámetro de raíz o hueco interior." onChange={(v) => updateSelectedParams("innerDiameter", v)} />
-                    <NumberControl label="Longitud / Altura" value={p!.length} min={1} max={500} step={0.5} tooltip="Longitud axial total." onChange={(v) => updateSelectedParams("length", v)} />
+                  <Section title={tr("Dimensiones principales")}>
+                    <NumberControl label={tr("Diámetro exterior")} value={p!.outerDiameter} min={1} max={200} step={0.1} tooltip={tr("Diámetro nominal exterior de la pieza.")} onChange={(v) => updateSelectedParams("outerDiameter", v)} />
+                    <NumberControl label={tr("Diámetro interior")} value={p!.innerDiameter} min={0} max={200} step={0.1} tooltip={tr("Diámetro de raíz o hueco interior.")} onChange={(v) => updateSelectedParams("innerDiameter", v)} />
+                    <NumberControl label={tr("Longitud / Altura")} value={p!.length} min={1} max={500} step={0.5} tooltip={tr("Longitud axial total.")} onChange={(v) => updateSelectedParams("length", v)} />
                   </Section>
 
-                  <Section title="Parámetros de hélice / rosca">
-                    <NumberControl label="Paso (pitch)" value={p!.pitch} min={0.2} max={50} step={0.05} tooltip="Distancia axial de una espira completa." onChange={(v) => updateSelectedParams("pitch", v)} />
+                  <Section title={tr("Parámetros de hélice / rosca")}>
+                    <NumberControl label={tr("Paso (pitch)")} value={p!.pitch} min={0.2} max={50} step={0.05} tooltip={tr("Distancia axial de una espira completa.")} onChange={(v) => updateSelectedParams("pitch", v)} />
                     <NumberControl label={t!.includes("spring") ? "Grosor del alambre" : "Grosor del filete"} value={p!.wireThickness} min={0.1} max={20} step={0.05} onChange={(v) => updateSelectedParams("wireThickness", v)} />
                     {(t === "auger" || t!.includes("spring")) && (
-                      <NumberControl label="Pala (ancho perfil)" value={p!.flightWidth} min={0.2} max={80} step={0.1} onChange={(v) => updateSelectedParams("flightWidth", v)} />
+                      <NumberControl label={tr("Pala (ancho perfil)")} value={p!.flightWidth} min={0.2} max={80} step={0.1} onChange={(v) => updateSelectedParams("flightWidth", v)} />
                     )}
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-muted-foreground">Entradas (multi-start)</label>
+                      <label className="text-xs font-medium text-muted-foreground">{tr("Entradas (multi-start)")}</label>
                       <div className="flex gap-1">
                         {[1, 2, 3, 4].map((n) => (
                           <button key={n} onClick={() => updateSelectedParams("starts", n)}
@@ -1006,7 +1006,7 @@ function HelixForge() {
                       </div>
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-muted-foreground">Dirección hélice</label>
+                      <label className="text-xs font-medium text-muted-foreground">{tr("Dirección hélice")}</label>
                       <div className="flex gap-1">
                         {(["right", "left"] as const).map((h) => (
                           <button key={h} onClick={() => updateSelectedParams("handed", h)}
@@ -1023,7 +1023,7 @@ function HelixForge() {
 
                   {t === "clevis" && (
                     <>
-                      <Section title="Tipo de unión">
+                      <Section title={tr("Tipo de unión")}>
                         <div className="flex gap-1">
                           {([["fork", "Horquilla"], ["single", "Oreja simple"], ["pin", "Pasador"]] as const).map(([v, label]) => (
                             <button key={v} onClick={() => updateSelectedParams("clevisStyle", v)}
@@ -1033,37 +1033,37 @@ function HelixForge() {
                           ))}
                         </div>
                         <div className="rounded border border-dashed border-border bg-panel/30 p-2 text-[10px] text-muted-foreground">
-                          Combina una horquilla + una oreja simple + un pasador para formar la junta completa.
+                          {tr("Combina una horquilla + una oreja simple + un pasador para formar la junta completa.")}
                         </div>
                       </Section>
 
-                      <Section title="Oreja / ojo">
-                        <NumberControl label="Diámetro del pasador" value={p!.pinDiameter ?? 8} min={1} max={100} step={0.1}
-                          tooltip="Diámetro del agujero pasante (y del pasador)." onChange={(v) => updateSelectedParams("pinDiameter", v)} />
+                      <Section title={tr("Oreja / ojo")}>
+                        <NumberControl label={tr("Diámetro del pasador")} value={p!.pinDiameter ?? 8} min={1} max={100} step={0.1}
+                          tooltip={tr("Diámetro del agujero pasante (y del pasador).")} onChange={(v) => updateSelectedParams("pinDiameter", v)} />
                         {(p!.clevisStyle ?? "fork") !== "pin" && (
                           <>
-                            <NumberControl label="Ancho de la oreja" value={p!.lugWidth ?? 20} min={2} max={200} step={0.5}
-                              tooltip="Ancho de la oreja; define el diámetro exterior del ojo." onChange={(v) => updateSelectedParams("lugWidth", v)} />
-                            <NumberControl label="Espesor de la oreja" value={p!.lugThickness ?? 6} min={0.5} max={60} step={0.1}
+                            <NumberControl label={tr("Ancho de la oreja")} value={p!.lugWidth ?? 20} min={2} max={200} step={0.5}
+                              tooltip={tr("Ancho de la oreja; define el diámetro exterior del ojo.")} onChange={(v) => updateSelectedParams("lugWidth", v)} />
+                            <NumberControl label={tr("Espesor de la oreja")} value={p!.lugThickness ?? 6} min={0.5} max={60} step={0.1}
                               onChange={(v) => updateSelectedParams("lugThickness", v)} />
-                            <NumberControl label="Largo del brazo" value={p!.armLength ?? 28} min={2} max={300} step={0.5}
-                              tooltip="Distancia desde la base hasta el centro del agujero." onChange={(v) => updateSelectedParams("armLength", v)} />
+                            <NumberControl label={tr("Largo del brazo")} value={p!.armLength ?? 28} min={2} max={300} step={0.5}
+                              tooltip={tr("Distancia desde la base hasta el centro del agujero.")} onChange={(v) => updateSelectedParams("armLength", v)} />
                           </>
                         )}
                         {(p!.clevisStyle ?? "fork") === "fork" && (
-                          <NumberControl label="Separación entre orejas" value={p!.clevisGap ?? 10} min={0.5} max={200} step={0.1}
-                            tooltip="Hueco interior de la horquilla: debe ser algo mayor que el espesor de la oreja simple."
+                          <NumberControl label={tr("Separación entre orejas")} value={p!.clevisGap ?? 10} min={0.5} max={200} step={0.1}
+                            tooltip={tr("Hueco interior de la horquilla: debe ser algo mayor que el espesor de la oreja simple.")}
                             onChange={(v) => updateSelectedParams("clevisGap", v)} />
                         )}
                       </Section>
 
                       {(p!.clevisStyle ?? "fork") !== "pin" && (
-                        <Section title="Base de anclaje">
-                          <NumberControl label="Ancho base" value={p!.baseWidth ?? 34} min={2} max={400} step={0.5} onChange={(v) => updateSelectedParams("baseWidth", v)} />
-                          <NumberControl label="Fondo base" value={p!.baseDepth ?? 24} min={2} max={400} step={0.5} onChange={(v) => updateSelectedParams("baseDepth", v)} />
-                          <NumberControl label="Espesor base" value={p!.baseThickness ?? 6} min={0.5} max={80} step={0.1} onChange={(v) => updateSelectedParams("baseThickness", v)} />
+                        <Section title={tr("Base de anclaje")}>
+                          <NumberControl label={tr("Ancho base")} value={p!.baseWidth ?? 34} min={2} max={400} step={0.5} onChange={(v) => updateSelectedParams("baseWidth", v)} />
+                          <NumberControl label={tr("Fondo base")} value={p!.baseDepth ?? 24} min={2} max={400} step={0.5} onChange={(v) => updateSelectedParams("baseDepth", v)} />
+                          <NumberControl label={tr("Espesor base")} value={p!.baseThickness ?? 6} min={0.5} max={80} step={0.1} onChange={(v) => updateSelectedParams("baseThickness", v)} />
                           <div className="space-y-1.5">
-                            <label className="text-xs font-medium text-muted-foreground">Agujeros de fijación</label>
+                            <label className="text-xs font-medium text-muted-foreground">{tr("Agujeros de fijación")}</label>
                             <div className="flex gap-1">
                               {([0, 2, 4] as const).map((n) => (
                                 <button key={n} onClick={() => updateSelectedParams("baseHoles", n)}
@@ -1074,7 +1074,7 @@ function HelixForge() {
                             </div>
                           </div>
                           {(p!.baseHoles ?? 0) > 0 && (
-                            <NumberControl label="Diámetro agujeros" value={p!.baseHoleDiameter ?? 5} min={0.5} max={60} step={0.1} onChange={(v) => updateSelectedParams("baseHoleDiameter", v)} />
+                            <NumberControl label={tr("Diámetro agujeros")} value={p!.baseHoleDiameter ?? 5} min={0.5} max={60} step={0.1} onChange={(v) => updateSelectedParams("baseHoleDiameter", v)} />
                           )}
                         </Section>
                       )}
@@ -1082,24 +1082,24 @@ function HelixForge() {
                   )}
 
                   {t === "tube" && (
-                    <Section title="Tubo">
-                      <NumberControl label="Diámetro A (superior)" value={p!.tubeDiameterA ?? 30} min={2} max={300} step={0.5}
-                        tooltip="Diámetro exterior del extremo superior del tubo."
+                    <Section title={tr("Tubo")}>
+                      <NumberControl label={tr("Diámetro A (superior)")} value={p!.tubeDiameterA ?? 30} min={2} max={300} step={0.5}
+                        tooltip={tr("Diámetro exterior del extremo superior del tubo.")}
                         onChange={(v) => updateSelectedParams("tubeDiameterA", v)} />
-                      <NumberControl label="Diámetro B (inferior)" value={p!.tubeDiameterB ?? 20} min={2} max={300} step={0.5}
-                        tooltip="Diámetro exterior del extremo inferior. Igual a A si quieres un tubo recto."
+                      <NumberControl label={tr("Diámetro B (inferior)")} value={p!.tubeDiameterB ?? 20} min={2} max={300} step={0.5}
+                        tooltip={tr("Diámetro exterior del extremo inferior. Igual a A si quieres un tubo recto.")}
                         onChange={(v) => updateSelectedParams("tubeDiameterB", v)} />
-                      <NumberControl label="Grosor de pared" value={p!.wallThickness ?? 2} min={0.2} max={40} step={0.1}
-                        tooltip="Espesor de la pared. El tubo es hueco y ambos extremos quedan cerrados por un anillo sólido."
+                      <NumberControl label={tr("Grosor de pared")} value={p!.wallThickness ?? 2} min={0.2} max={40} step={0.1}
+                        tooltip={tr("Espesor de la pared. El tubo es hueco y ambos extremos quedan cerrados por un anillo sólido.")}
                         onChange={(v) => updateSelectedParams("wallThickness", v)} />
-                      <NumberControl label="Longitud" value={p!.length} min={1} max={500} step={0.5}
-                        tooltip="Longitud axial del tubo."
+                      <NumberControl label={tr("Longitud")} value={p!.length} min={1} max={500} step={0.5}
+                        tooltip={tr("Longitud axial del tubo.")}
                         onChange={(v) => updateSelectedParams("length", v)} />
-                      <NumberControl label="Ángulo extremo A (superior)" value={p!.tubeAngleA ?? 0} min={-75} max={75} step={1}
-                        tooltip="Inclinación del corte superior en grados. 0 = corte recto; valores positivos o negativos inclinan el plano de corte."
+                      <NumberControl label={tr("Ángulo extremo A (superior)")} value={p!.tubeAngleA ?? 0} min={-75} max={75} step={1}
+                        tooltip={tr("Inclinación del corte superior en grados. 0 = corte recto; valores positivos o negativos inclinan el plano de corte.")}
                         onChange={(v) => updateSelectedParams("tubeAngleA", v)} />
-                      <NumberControl label="Ángulo extremo B (inferior)" value={p!.tubeAngleB ?? 0} min={-75} max={75} step={1}
-                        tooltip="Inclinación del corte inferior en grados. 0 = corte recto."
+                      <NumberControl label={tr("Ángulo extremo B (inferior)")} value={p!.tubeAngleB ?? 0} min={-75} max={75} step={1}
+                        tooltip={tr("Inclinación del corte inferior en grados. 0 = corte recto.")}
                         onChange={(v) => updateSelectedParams("tubeAngleB", v)} />
                       <div className="rounded border border-dashed border-border bg-panel/30 p-2 text-[10px] text-muted-foreground">
                         Tubo hueco con superficie interior y exterior sólidas (manifold), listo para impresión 3D.
@@ -1108,35 +1108,35 @@ function HelixForge() {
                   )}
 
                   {(t === "screw" || t === "nut" || t === "threaded-cap" || t === "threaded-cylinder") && (
-                    <Section title="Rosca">
+                    <Section title={tr("Rosca")}>
                       <Select value={p!.threadForm ?? "metric"} onValueChange={(v) => updateSelectedParams("threadForm", v as "metric" | "acme")}>
                         <SelectTrigger className="h-8 bg-input text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="metric">Métrica (triangular)</SelectItem>
-                          <SelectItem value="acme">ACME / Trapezoidal</SelectItem>
+                          <SelectItem value="metric">{tr("Métrica (triangular)")}</SelectItem>
+                          <SelectItem value="acme">{tr("ACME / Trapezoidal")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </Section>
                   )}
 
                   {t === "screw" && (
-                    <Section title="Cabeza y cuerpo">
+                    <Section title={tr("Cabeza y cuerpo")}>
                       <Select value={p!.headType ?? "hex"} onValueChange={(v) => updateSelectedParams("headType", v as "hex" | "socket" | "button")}>
                         <SelectTrigger className="h-8 bg-input text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="hex">Hexagonal</SelectItem>
-                          <SelectItem value="socket">Allen (cilíndrica)</SelectItem>
-                          <SelectItem value="button">Botón</SelectItem>
+                          <SelectItem value="hex">{tr("Hexagonal")}</SelectItem>
+                          <SelectItem value="socket">{tr("Allen (cilíndrica)")}</SelectItem>
+                          <SelectItem value="button">{tr("Botón")}</SelectItem>
                         </SelectContent>
                       </Select>
-                      <NumberControl label="Diámetro cabeza" value={p!.headDiameter ?? 13} min={2} max={100} step={0.1} onChange={(v) => updateSelectedParams("headDiameter", v)} />
-                      <NumberControl label="Altura cabeza" value={p!.headHeight ?? 5} min={0.5} max={50} step={0.1} onChange={(v) => updateSelectedParams("headHeight", v)} />
-                      <NumberControl label="Longitud rosca" value={p!.threadLength ?? p!.length} min={0} max={500} step={0.5} onChange={(v) => updateSelectedParams("threadLength", v)} />
+                      <NumberControl label={tr("Diámetro cabeza")} value={p!.headDiameter ?? 13} min={2} max={100} step={0.1} onChange={(v) => updateSelectedParams("headDiameter", v)} />
+                      <NumberControl label={tr("Altura cabeza")} value={p!.headHeight ?? 5} min={0.5} max={50} step={0.1} onChange={(v) => updateSelectedParams("headHeight", v)} />
+                      <NumberControl label={tr("Longitud rosca")} value={p!.threadLength ?? p!.length} min={0} max={500} step={0.5} onChange={(v) => updateSelectedParams("threadLength", v)} />
                     </Section>
                   )}
 
                   {t === "nut" && (
-                    <Section title="Tuerca">
+                    <Section title={tr("Tuerca")}>
                       <div className="flex gap-1">
                         {(["hex", "square"] as const).map((s) => (
                           <button key={s} onClick={() => updateSelectedParams("nutShape", s)}
@@ -1145,31 +1145,31 @@ function HelixForge() {
                           </button>
                         ))}
                       </div>
-                      <NumberControl label="Altura tuerca" value={p!.nutHeight ?? 6.5} min={1} max={80} step={0.1} onChange={(v) => updateSelectedParams("nutHeight", v)} />
-                      <NumberControl label="Entrecaras" value={p!.headDiameter ?? 13} min={2} max={100} step={0.1} onChange={(v) => updateSelectedParams("headDiameter", v)} />
+                      <NumberControl label={tr("Altura tuerca")} value={p!.nutHeight ?? 6.5} min={1} max={80} step={0.1} onChange={(v) => updateSelectedParams("nutHeight", v)} />
+                      <NumberControl label={tr("Entrecaras")} value={p!.headDiameter ?? 13} min={2} max={100} step={0.1} onChange={(v) => updateSelectedParams("headDiameter", v)} />
                     </Section>
                   )}
 
                   {t === "auger" && (
                     <>
-                      <Section title="Sinfín">
-                        <NumberControl label="Diámetro eje" value={p!.shaftDiameter ?? 10} min={1} max={100} step={0.1} onChange={(v) => updateSelectedParams("shaftDiameter", v)} />
-                        <NumberControl label="Espesor pala" value={p!.flightThickness ?? 2} min={0.4} max={20} step={0.1} onChange={(v) => updateSelectedParams("flightThickness", v)} />
+                      <Section title={tr("Sinfín")}>
+                        <NumberControl label={tr("Diámetro eje")} value={p!.shaftDiameter ?? 10} min={1} max={100} step={0.1} onChange={(v) => updateSelectedParams("shaftDiameter", v)} />
+                        <NumberControl label={tr("Espesor pala")} value={p!.flightThickness ?? 2} min={0.4} max={20} step={0.1} onChange={(v) => updateSelectedParams("flightThickness", v)} />
                       </Section>
-                      <Section title="Refuerzo / Fillet">
+                      <Section title={tr("Refuerzo / Fillet")}>
                         <Select value={p!.filletType ?? "none"} onValueChange={(v) => updateSelectedParams("filletType", v as "none" | "circular" | "triangular" | "rounded")}>
                           <SelectTrigger className="h-8 bg-input text-xs"><SelectValue /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="none">Ninguno</SelectItem>
-                            <SelectItem value="circular">Fillet circular</SelectItem>
-                            <SelectItem value="triangular">Triangular (rib)</SelectItem>
-                            <SelectItem value="rounded">Redondeado suave</SelectItem>
+                            <SelectItem value="none">{tr("Ninguno")}</SelectItem>
+                            <SelectItem value="circular">{tr("Fillet circular")}</SelectItem>
+                            <SelectItem value="triangular">{tr("Triangular (rib)")}</SelectItem>
+                            <SelectItem value="rounded">{tr("Redondeado suave")}</SelectItem>
                           </SelectContent>
                         </Select>
-                        <NumberControl label="Radio de refuerzo" value={p!.filletRadius ?? 0} min={0} max={Math.max(1, (p!.flightWidth ?? 10) * 0.9)} step={0.1}
-                          tooltip="Añade material de refuerzo entre el eje y la pala."
+                        <NumberControl label={tr("Radio de refuerzo")} value={p!.filletRadius ?? 0} min={0} max={Math.max(1, (p!.flightWidth ?? 10) * 0.9)} step={0.1}
+                          tooltip={tr("Añade material de refuerzo entre el eje y la pala.")}
                           onChange={(v) => updateSelectedParams("filletRadius", v)} />
-                        <NumberControl label="Altura del refuerzo" value={p!.filletHeight ?? p!.filletRadius ?? 0} min={0} max={Math.max(1, (p!.flightThickness ?? 2) * 4)} step={0.1}
+                        <NumberControl label={tr("Altura del refuerzo")} value={p!.filletHeight ?? p!.filletRadius ?? 0} min={0} max={Math.max(1, (p!.flightThickness ?? 2) * 4)} step={0.1}
                           onChange={(v) => updateSelectedParams("filletHeight", v)} />
                       </Section>
                     </>
@@ -1177,24 +1177,24 @@ function HelixForge() {
 
                   {t === "threaded-cap" && (
                     <>
-                      <Section title="Tapa — Cavidad">
+                      <Section title={tr("Tapa — Cavidad")}>
                         <div className="rounded border border-primary/30 bg-primary/5 p-2 text-[10px] text-muted-foreground">
-                          Cavidad interior real (hueca). Activa <b>Sección</b> arriba o gira la tapa boca abajo para ver el hueco desde dentro.
+                          Cavidad interior real (hueca). Activa <b>{tr("Sección")}</b> arriba o gira la tapa boca abajo para ver el hueco desde dentro.
                         </div>
-                        <NumberControl label="Altura interior (cavidad)" value={p!.capInteriorHeight ?? (p!.length - 2)} min={0.5} max={Math.max(1, p!.length - 0.5)} step={0.1}
-                          tooltip="Profundidad real del hueco desde el borde inferior."
+                        <NumberControl label={tr("Altura interior (cavidad)")} value={p!.capInteriorHeight ?? (p!.length - 2)} min={0.5} max={Math.max(1, p!.length - 0.5)} step={0.1}
+                          tooltip={tr("Profundidad real del hueco desde el borde inferior.")}
                           onChange={(v) => updateSelectedParams("capInteriorHeight", v)} />
                         <div className="flex items-center justify-between rounded border border-border bg-input/40 px-2 py-1 text-[11px]">
-                          <span className="text-muted-foreground">Espesor pared (calc.)</span>
+                          <span className="text-muted-foreground">{tr("Espesor pared (calc.)")}</span>
                           <span className="font-mono text-foreground">{((p!.outerDiameter - p!.innerDiameter) / 2).toFixed(2)} mm</span>
                         </div>
                         <div className="flex items-center justify-between rounded border border-border bg-input/40 px-2 py-1 text-[11px]">
-                          <span className="text-muted-foreground">Espesor techo (calc.)</span>
+                          <span className="text-muted-foreground">{tr("Espesor techo (calc.)")}</span>
                           <span className="font-mono text-foreground">{(p!.length - (p!.capInteriorHeight ?? p!.length - 2)).toFixed(2)} mm</span>
                         </div>
                       </Section>
 
-                      <Section title="Rosca interior">
+                      <Section title={tr("Rosca interior")}>
                         <div className="flex gap-1">
                           {[true, false].map((b) => (
                             <button key={String(b)} onClick={() => updateSelectedParams("hasInternalThread", b)}
@@ -1203,50 +1203,50 @@ function HelixForge() {
                             </button>
                           ))}
                         </div>
-                        <NumberControl label="Inicio rosca (desde base)" value={p!.threadStartHeight ?? 0} min={0} max={Math.max(0, (p!.capInteriorHeight ?? p!.length) - 0.5)} step={0.1}
-                          tooltip="Distancia desde el borde inferior hasta donde empieza la rosca interior."
+                        <NumberControl label={tr("Inicio rosca (desde base)")} value={p!.threadStartHeight ?? 0} min={0} max={Math.max(0, (p!.capInteriorHeight ?? p!.length) - 0.5)} step={0.1}
+                          tooltip={tr("Distancia desde el borde inferior hasta donde empieza la rosca interior.")}
                           onChange={(v) => updateSelectedParams("threadStartHeight", v)} />
-                        <NumberControl label="Profundidad de rosca" value={p!.wireThickness} min={0.2} max={5} step={0.05}
-                          tooltip="Profundidad radial de cada filete. Ajusta según el tornillo que debe alojarse."
+                        <NumberControl label={tr("Profundidad de rosca")} value={p!.wireThickness} min={0.2} max={5} step={0.05}
+                          tooltip={tr("Profundidad radial de cada filete. Ajusta según el tornillo que debe alojarse.")}
                           onChange={(v) => updateSelectedParams("wireThickness", v)} />
-                        <NumberControl label="Ancho de pala (rosca)" value={p!.flightWidth} min={0.1} max={Math.max(0.2, p!.pitch * 0.95)} step={0.05}
-                          tooltip="Ancho axial del filete de la rosca interior. Debe ser menor que el paso."
+                        <NumberControl label={tr("Ancho de pala (rosca)")} value={p!.flightWidth} min={0.1} max={Math.max(0.2, p!.pitch * 0.95)} step={0.05}
+                          tooltip={tr("Ancho axial del filete de la rosca interior. Debe ser menor que el paso.")}
                           onChange={(v) => updateSelectedParams("flightWidth", v)} />
                       </Section>
 
-                      <Section title="Agarradera exterior (grip)">
+                      <Section title={tr("Agarradera exterior (grip)")}>
                         <Select value={p!.gripType ?? "smooth"} onValueChange={(v) => updateSelectedParams("gripType", v as "smooth" | "hex" | "knurled" | "hex-knurled")}>
                           <SelectTrigger className="h-8 bg-input text-xs"><SelectValue /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="smooth">Lisa</SelectItem>
-                            <SelectItem value="hex">Hexagonal</SelectItem>
-                            <SelectItem value="knurled">Antideslizante (knurled)</SelectItem>
-                            <SelectItem value="hex-knurled">Hex + knurled</SelectItem>
+                            <SelectItem value="smooth">{tr("Lisa")}</SelectItem>
+                            <SelectItem value="hex">{tr("Hexagonal")}</SelectItem>
+                            <SelectItem value="knurled">{tr("Antideslizante (knurled)")}</SelectItem>
+                            <SelectItem value="hex-knurled">{tr("Hex + knurled")}</SelectItem>
                           </SelectContent>
                         </Select>
-                        <NumberControl label="Altura zona agarre" value={p!.gripHeight ?? p!.length} min={0} max={p!.length} step={0.1}
-                          tooltip="Altura, desde la base, ocupada por la zona de agarre. El resto es liso."
+                        <NumberControl label={tr("Altura zona agarre")} value={p!.gripHeight ?? p!.length} min={0} max={p!.length} step={0.1}
+                          tooltip={tr("Altura, desde la base, ocupada por la zona de agarre. El resto es liso.")}
                           onChange={(v) => updateSelectedParams("gripHeight", v)} />
                         {(p!.gripType === "knurled" || p!.gripType === "hex-knurled") && (
-                          <NumberControl label="Intensidad knurl" value={p!.knurlIntensity ?? 0.5} min={0} max={1} step={0.05} unit=""
-                            tooltip="Profundidad y agresividad de los surcos antideslizantes."
+                          <NumberControl label={tr("Intensidad knurl")} value={p!.knurlIntensity ?? 0.5} min={0} max={1} step={0.05} unit=""
+                            tooltip={tr("Profundidad y agresividad de los surcos antideslizantes.")}
                             onChange={(v) => updateSelectedParams("knurlIntensity", v)} />
                         )}
                       </Section>
 
-                      <Section title="Agujero de herramienta">
+                      <Section title={tr("Agujero de herramienta")}>
                         <Select value={p!.toolHoleType ?? "none"} onValueChange={(v) => updateSelectedParams("toolHoleType", v as "none" | "hex" | "slot")}>
                           <SelectTrigger className="h-8 bg-input text-xs"><SelectValue /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="none">Ninguno</SelectItem>
-                            <SelectItem value="hex">Hexagonal (Allen)</SelectItem>
-                            <SelectItem value="slot">Ranura (destornillador)</SelectItem>
+                            <SelectItem value="none">{tr("Ninguno")}</SelectItem>
+                            <SelectItem value="hex">{tr("Hexagonal (Allen)")}</SelectItem>
+                            <SelectItem value="slot">{tr("Ranura (destornillador)")}</SelectItem>
                           </SelectContent>
                         </Select>
                         {(p!.toolHoleType ?? "none") !== "none" && (
                           <>
                             <div className="space-y-1.5">
-                              <label className="text-xs font-medium text-muted-foreground">Ubicación</label>
+                              <label className="text-xs font-medium text-muted-foreground">{tr("Ubicación")}</label>
                               <div className="flex gap-1">
                                 {(["inside", "outside-top"] as const).map((loc) => (
                                   <button key={loc} onClick={() => updateSelectedParams("toolHoleLocation", loc)}
@@ -1256,11 +1256,11 @@ function HelixForge() {
                                 ))}
                               </div>
                             </div>
-                            <NumberControl label="Tamaño" value={p!.toolHoleSize ?? 4} min={0.5} max={Math.max(1, ((p!.toolHoleLocation ?? "inside") === "outside-top" ? p!.outerDiameter : p!.innerDiameter) - 1)} step={0.1}
-                              tooltip="Entrecaras (Allen) o largo (ranura)."
+                            <NumberControl label={tr("Tamaño")} value={p!.toolHoleSize ?? 4} min={0.5} max={Math.max(1, ((p!.toolHoleLocation ?? "inside") === "outside-top" ? p!.outerDiameter : p!.innerDiameter) - 1)} step={0.1}
+                              tooltip={tr("Entrecaras (Allen) o largo (ranura).")}
                               onChange={(v) => updateSelectedParams("toolHoleSize", v)} />
-                            <NumberControl label="Profundidad" value={p!.toolHoleDepth ?? 3} min={0} max={Math.max(0.5, p!.length - 0.5)} step={0.1}
-                              tooltip="Si supera el grosor del techo, la cavidad se reduce automáticamente para dar espacio al agujero."
+                            <NumberControl label={tr("Profundidad")} value={p!.toolHoleDepth ?? 3} min={0} max={Math.max(0.5, p!.length - 0.5)} step={0.1}
+                              tooltip={tr("Si supera el grosor del techo, la cavidad se reduce automáticamente para dar espacio al agujero.")}
                               onChange={(v) => updateSelectedParams("toolHoleDepth", v)} />
 
                           </>
@@ -1271,7 +1271,7 @@ function HelixForge() {
 
 
                   {t === "threaded-cylinder" && (
-                    <Section title="Cilindro">
+                    <Section title={tr("Cilindro")}>
                       <div className="flex gap-1">
                         {[true, false].map((b) => (
                           <button key={String(b)} onClick={() => {
@@ -1287,12 +1287,12 @@ function HelixForge() {
                         ))}
                       </div>
                       <div className="mt-2">
-                        <div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">Rosca</div>
+                        <div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">{tr("Rosca")}</div>
                         <div className="flex gap-1">
                           {([
-                            { v: "none", label: "Sin rosca", disabled: false },
-                            { v: "external", label: "Exterior", disabled: false },
-                            { v: "internal", label: "Interior", disabled: !p!.hollow },
+                            { v: "none", label: tr("Sin rosca"), disabled: false },
+                            { v: "external", label: tr("Exterior"), disabled: false },
+                            { v: "internal", label: tr("Interior"), disabled: !p!.hollow },
                           ] as const).map((opt) => {
                             const current = p!.cylinderThread ?? "external";
                             const active = current === opt.v;
@@ -1316,32 +1316,32 @@ function HelixForge() {
                           })}
                         </div>
                       </div>
-                      <NumberControl label="Ángulo extremo A (superior)" value={p!.cylinderAngleA ?? 0} min={-75} max={75} step={1}
-                        unit="°" tooltip="Inclina el corte del extremo superior. 0° = corte recto."
+                      <NumberControl label={tr("Ángulo extremo A (superior)")} value={p!.cylinderAngleA ?? 0} min={-75} max={75} step={1}
+                        unit="°" tooltip={tr("Inclina el corte del extremo superior. 0° = corte recto.")}
                         onChange={(v) => updateSelectedParams("cylinderAngleA", v)} />
-                      <NumberControl label="Ángulo extremo B (inferior)" value={p!.cylinderAngleB ?? 0} min={-75} max={75} step={1}
-                        unit="°" tooltip="Inclina el corte del extremo inferior. 0° = corte recto."
+                      <NumberControl label={tr("Ángulo extremo B (inferior)")} value={p!.cylinderAngleB ?? 0} min={-75} max={75} step={1}
+                        unit="°" tooltip={tr("Inclina el corte del extremo inferior. 0° = corte recto.")}
                         onChange={(v) => updateSelectedParams("cylinderAngleB", v)} />
                     </Section>
                   )}
 
 
                   {t!.includes("spring") && (
-                    <Section title="Extremos del muelle">
+                    <Section title={tr("Extremos del muelle")}>
                       <Select value={p!.springEnds ?? "closed"} onValueChange={(v) => updateSelectedParams("springEnds", v as "open" | "closed" | "closed-ground")}>
                         <SelectTrigger className="h-8 bg-input text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="open">Abiertos</SelectItem>
-                          <SelectItem value="closed">Cerrados</SelectItem>
-                          <SelectItem value="closed-ground">Cerrados y rectificados</SelectItem>
+                          <SelectItem value="open">{tr("Abiertos")}</SelectItem>
+                          <SelectItem value="closed">{tr("Cerrados")}</SelectItem>
+                          <SelectItem value="closed-ground">{tr("Cerrados y rectificados")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </Section>
                   )}
 
-                  <Section title="Avanzado">
+                  <Section title={tr("Avanzado")}>
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-medium text-muted-foreground">Resolución de malla</label>
+                      <label className="text-xs font-medium text-muted-foreground">{tr("Resolución de malla")}</label>
                       <span className="text-xs font-mono text-primary">{p!.resolution}</span>
                     </div>
                     <Slider value={[p!.resolution]} min={12} max={128} step={4} onValueChange={(v) => updateSelectedParams("resolution", v[0])} />
@@ -1364,11 +1364,11 @@ function HelixForge() {
                   {i === 3 && <Box className="h-3.5 w-3.5" />}
                 </Button>
               ))}
-              <Button variant="secondary" size="sm" className="h-7 w-7 p-0" title="Ajustar vista a todo el conjunto" onClick={() => viewerRef.current?.setView("fit")}>
+              <Button variant="secondary" size="sm" className="h-7 w-7 p-0" title={tr("Ajustar vista a todo el conjunto")} onClick={() => viewerRef.current?.setView("fit")}>
                 <Scan className="h-3.5 w-3.5" />
               </Button>
               {selected && (
-                <Button variant="secondary" size="sm" className="h-7 w-7 p-0" title="Centrar vista en la pieza seleccionada" onClick={() => viewerRef.current?.focusOn(selected.id)}>
+                <Button variant="secondary" size="sm" className="h-7 w-7 p-0" title={tr("Centrar vista en la pieza seleccionada")} onClick={() => viewerRef.current?.focusOn(selected.id)}>
                   <Focus className="h-3.5 w-3.5" />
                 </Button>
               )}
@@ -1386,16 +1386,16 @@ function HelixForge() {
             <Select value={material} onValueChange={(v) => setMaterial(v as MaterialPreset)}>
               <SelectTrigger className="h-7 w-[110px] bg-input text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="steel">Acero</SelectItem>
-                <SelectItem value="aluminum">Aluminio</SelectItem>
-                <SelectItem value="brass">Latón</SelectItem>
+                <SelectItem value="steel">{tr("Acero")}</SelectItem>
+                <SelectItem value="aluminum">{tr("Aluminio")}</SelectItem>
+                <SelectItem value="brass">{tr("Latón")}</SelectItem>
               </SelectContent>
             </Select>
             <Separator orientation="vertical" className="h-6" />
             <Toggle pressed={showGrid} onPressedChange={setShowGrid} size="sm" className="h-7 px-2 data-[state=on]:bg-primary/20 data-[state=on]:text-primary"><Grid3x3 className="h-3.5 w-3.5" /></Toggle>
             <Toggle pressed={showAxes} onPressedChange={setShowAxes} size="sm" className="h-7 px-2 data-[state=on]:bg-primary/20 data-[state=on]:text-primary"><Ruler className="h-3.5 w-3.5" /></Toggle>
             <Toggle pressed={autoRotate} onPressedChange={setAutoRotate} size="sm" className="h-7 px-2 data-[state=on]:bg-primary/20 data-[state=on]:text-primary"><Play className="h-3.5 w-3.5" /></Toggle>
-            <Toggle pressed={clipEnabled} onPressedChange={setClipEnabled} size="sm" className="h-7 px-2 data-[state=on]:bg-primary/20 data-[state=on]:text-primary" title="Sección de corte">
+            <Toggle pressed={clipEnabled} onPressedChange={setClipEnabled} size="sm" className="h-7 px-2 data-[state=on]:bg-primary/20 data-[state=on]:text-primary" title={tr("Sección de corte")}>
               <Scissors className="h-3.5 w-3.5" />
             </Toggle>
             {clipEnabled && (
@@ -1410,7 +1410,7 @@ function HelixForge() {
               onPressedChange={setDiagOpen}
               size="sm"
               className="h-7 px-2 data-[state=on]:bg-destructive/20 data-[state=on]:text-destructive"
-              title="Diagnóstico de malla: detecta huecos, bordes abiertos y paredes finas"
+              title={tr("Diagnóstico de malla: detecta huecos, bordes abiertos y paredes finas")}
             >
               <Stethoscope className="h-3.5 w-3.5" />
             </Toggle>
@@ -1419,12 +1419,12 @@ function HelixForge() {
               onPressedChange={setMetricsOpen}
               size="sm"
               className="h-7 px-2 data-[state=on]:bg-primary/20 data-[state=on]:text-primary"
-              title="Estadísticas de malla: triángulos, quads y detalle por pieza"
+              title={tr("Estadísticas de malla: triángulos, quads y detalle por pieza")}
             >
               <Triangle className="h-3.5 w-3.5" />
             </Toggle>
             <div className="ml-auto text-[10px] text-muted-foreground">
-              Clic sobre una pieza para seleccionarla · doble-clic en la lista → focus
+              {tr("Clic sobre una pieza para seleccionarla · doble-clic en la lista → focus")}
             </div>
           </div>
 
@@ -1434,7 +1434,7 @@ function HelixForge() {
               <div className="pointer-events-auto absolute left-3 top-3 w-[250px] rounded-md border border-primary/40 bg-background/95 p-3 text-xs shadow-lg backdrop-blur">
                 <div className="mb-2 flex items-center gap-2">
                   <Triangle className="h-4 w-4 text-primary" />
-                  <span className="font-semibold uppercase tracking-wider text-primary">Malla</span>
+                  <span className="font-semibold uppercase tracking-wider text-primary">{tr("Malla")}</span>
                   <Button variant="ghost" size="sm" className="ml-auto h-6 w-6 p-0" onClick={() => setMetricsOpen(false)}>
                     <X className="h-3.5 w-3.5" />
                   </Button>
@@ -1442,15 +1442,15 @@ function HelixForge() {
                 <Select value={metricsMode} onValueChange={(v) => setMetricsMode(v as typeof metricsMode)}>
                   <SelectTrigger className="mb-2 h-7 bg-input text-[11px]"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="tris">Triángulos</SelectItem>
-                    <SelectItem value="quads">Quads (equivalente)</SelectItem>
-                    <SelectItem value="perPart">Triángulos por pieza</SelectItem>
+                    <SelectItem value="tris">{tr("Triángulos")}</SelectItem>
+                    <SelectItem value="quads">{tr("Quads (equivalente)")}</SelectItem>
+                    <SelectItem value="perPart">{tr("Triángulos por pieza")}</SelectItem>
                   </SelectContent>
                 </Select>
                 {metricsMode === "perPart" ? (
                   <div className="max-h-[220px] space-y-1 overflow-y-auto pr-1">
                     {meshMetrics.perPart.length === 0 && (
-                      <div className="text-[10px] text-muted-foreground">Sin piezas en escena.</div>
+                      <div className="text-[10px] text-muted-foreground">{tr("Sin piezas en escena.")}</div>
                     )}
                     {meshMetrics.perPart.map((m) => (
                       <button
@@ -1463,7 +1463,7 @@ function HelixForge() {
                       </button>
                     ))}
                     <div className="mt-1 flex items-center justify-between border-t border-border/50 pt-1 font-mono text-[10px] text-muted-foreground">
-                      <span>Total visible</span>
+                      <span>{tr("Total visible")}</span>
                       <span className="text-foreground">{meshMetrics.tris.toLocaleString("es-ES")}</span>
                     </div>
                   </div>
@@ -1476,15 +1476,15 @@ function HelixForge() {
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Vértices</span>
+                      <span className="text-muted-foreground">{tr("Vértices")}</span>
                       <span className="text-foreground">{meshMetrics.verts.toLocaleString("es-ES")}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Mallas</span>
+                      <span className="text-muted-foreground">{tr("Mallas")}</span>
                       <span className="text-foreground">{meshMetrics.meshes.toLocaleString("es-ES")}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Piezas visibles</span>
+                      <span className="text-muted-foreground">{tr("Piezas visibles")}</span>
                       <span className="text-foreground">{meshMetrics.perPart.filter((m) => m.visible).length}</span>
                     </div>
                   </div>
@@ -1495,25 +1495,25 @@ function HelixForge() {
               <div className="pointer-events-auto absolute right-3 top-3 w-[300px] rounded-md border border-destructive/40 bg-background/95 p-3 text-xs shadow-lg backdrop-blur">
                 <div className="mb-2 flex items-center gap-2">
                   <Stethoscope className="h-4 w-4 text-destructive" />
-                  <span className="font-semibold uppercase tracking-wider text-destructive">Diagnóstico de malla</span>
+                  <span className="font-semibold uppercase tracking-wider text-destructive">{tr("Diagnóstico de malla")}</span>
                   <Button variant="ghost" size="sm" className="ml-auto h-6 w-6 p-0" onClick={() => setDiagOpen(false)}>
                     <X className="h-3.5 w-3.5" />
                   </Button>
                 </div>
                 <div className="mb-2 flex gap-1">
                   <Button size="sm" variant={diagScope === "selected" ? "secondary" : "ghost"} className="h-6 flex-1 px-2 text-[10px]" onClick={() => setDiagScope("selected")} disabled={!selectedId}>
-                    Pieza sel.
+                    {tr("Pieza sel.")}
                   </Button>
                   <Button size="sm" variant={diagScope === "assembly" ? "secondary" : "ghost"} className="h-6 flex-1 px-2 text-[10px]" onClick={() => setDiagScope("assembly")}>
-                    Ensamblaje
+                    {tr("Ensamblaje")}
                   </Button>
                 </div>
                 <div className="space-y-1">
                   {[
-                    { key: "showOpenEdges", label: "Bordes abiertos (rojo)" },
-                    { key: "showNonManifold", label: "No-manifold (magenta)" },
-                    { key: "showThickness", label: "Espesor de pared" },
-                    { key: "showNormals", label: "Normales de caras" },
+                    { key: "showOpenEdges", label: tr("Bordes abiertos (rojo)") },
+                    { key: "showNonManifold", label: tr("No-manifold (magenta)") },
+                    { key: "showThickness", label: tr("Espesor de pared") },
+                    { key: "showNormals", label: tr("Normales de caras") },
                   ].map((o) => (
                     <label key={o.key} className="flex cursor-pointer items-center gap-2 rounded px-1 py-0.5 hover:bg-muted/50">
                       <input
@@ -1529,13 +1529,13 @@ function HelixForge() {
                 {diagOpts.showThickness && (
                   <div className="mt-2 space-y-1 rounded border border-border/50 p-2">
                     <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                      <span>Mín. seguro (mm)</span>
+                      <span>{tr("Mín. seguro (mm)")}</span>
                       <span className="font-mono text-foreground">{diagOpts.wallThicknessMin.toFixed(2)}</span>
                     </div>
                     <Slider value={[diagOpts.wallThicknessMin]} min={0.2} max={5} step={0.1}
                       onValueChange={(v) => setDiagOpts((d) => ({ ...d, wallThicknessMin: v[0] }))} />
                     <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                      <span>Objetivo verde (mm)</span>
+                      <span>{tr("Objetivo verde (mm)")}</span>
                       <span className="font-mono text-foreground">{diagOpts.wallThicknessSafe.toFixed(2)}</span>
                     </div>
                     <Slider value={[diagOpts.wallThicknessSafe]} min={0.5} max={8} step={0.1}
@@ -1545,14 +1545,14 @@ function HelixForge() {
                 {diagReport && (
                   <div className="mt-2 space-y-1 rounded border border-border/50 p-2">
                     <div className="grid grid-cols-2 gap-1 font-mono text-[10px] text-muted-foreground">
-                      <div>Meshes: <span className="text-foreground">{diagReport.meshes}</span></div>
-                      <div>Tris: <span className="text-foreground">{diagReport.triangles}</span></div>
-                      <div>Abiertos: <span className={diagReport.openEdges > 0 ? "text-destructive" : "text-foreground"}>{diagReport.openEdges}</span></div>
-                      <div>No-manif.: <span className={diagReport.nonManifoldEdges > 0 ? "text-destructive" : "text-foreground"}>{diagReport.nonManifoldEdges}</span></div>
+                      <div>{tr("Meshes:")} <span className="text-foreground">{diagReport.meshes}</span></div>
+                      <div>{tr("Tris:")} <span className="text-foreground">{diagReport.triangles}</span></div>
+                      <div>{tr("Abiertos:")} <span className={diagReport.openEdges > 0 ? "text-destructive" : "text-foreground"}>{diagReport.openEdges}</span></div>
+                      <div>{tr("No-manif.:")} <span className={diagReport.nonManifoldEdges > 0 ? "text-destructive" : "text-foreground"}>{diagReport.nonManifoldEdges}</span></div>
                       {diagOpts.showThickness && (
                         <>
-                          <div>Finas: <span className={diagReport.thinTriangles > 0 ? "text-destructive" : "text-foreground"}>{diagReport.thinTriangles}</span></div>
-                          <div>Mín: <span className="text-foreground">{diagReport.minWallThickness.toFixed(2)}mm</span></div>
+                          <div>{tr("Finas:")} <span className={diagReport.thinTriangles > 0 ? "text-destructive" : "text-foreground"}>{diagReport.thinTriangles}</span></div>
+                          <div>{tr("Mín:")} <span className="text-foreground">{diagReport.minWallThickness.toFixed(2)}mm</span></div>
                         </>
                       )}
                     </div>
@@ -1604,7 +1604,7 @@ function HelixForge() {
               </Section>
 
               {selected && (
-                <Section title="Validación">
+                <Section title={tr("Validación")}>
                   <div className="space-y-1.5">
                     {validation.map((v, i) => (
                       <div key={i} className={`rounded border p-2 text-[11px] ${
@@ -1619,7 +1619,7 @@ function HelixForge() {
                 </Section>
               )}
 
-              <Section title="Exportar rápido">
+              <Section title={tr("Exportar rápido")}>
                 <Button className="w-full justify-start gap-2 bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => doExportAssembly("stl")}>
                   <Download className="h-4 w-4" /> STL — ensamblaje
                 </Button>
@@ -1633,9 +1633,9 @@ function HelixForge() {
                 )}
               </Section>
 
-              <Section title="Historial">
+              <Section title={tr("Historial")}>
                 {history.length === 0 ? (
-                  <p className="text-[11px] text-muted-foreground">Aún no has exportado piezas.</p>
+                  <p className="text-[11px] text-muted-foreground">{tr("Aún no has exportado piezas.")}</p>
                 ) : (
                   <div className="space-y-1">
                     {history.map((h) => (
