@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { DEFAULT_LOCALE, DICTIONARIES, INTL_LOCALE, isLocale, type Locale } from "./index";
+import { DEFAULT_LOCALE, DICTIONARIES, INTL_LOCALE, isLocale, setCurrentLocale, type Locale } from "./index";
 
 const STORAGE_KEY = "helixforge:locale";
 
@@ -45,6 +45,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   }, [locale]);
 
   const value = useMemo<I18nValue>(() => {
+    setCurrentLocale(locale);
     const dict = DICTIONARIES[locale] ?? {};
     return {
       locale,

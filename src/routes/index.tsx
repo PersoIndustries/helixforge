@@ -26,6 +26,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Toaster, toast } from "sonner";
 import { Viewer3D, type ViewerHandle, type MaterialPreset, type ViewMode, type PartRenderInput } from "@/components/Viewer3D";
 import { NumberControl } from "@/components/NumberControl";
+import { tr, LOCALES } from "@/i18n";
+import { useI18n } from "@/i18n/I18nProvider";
 import {
   buildPart, DEFAULT_PARAMS, PRESETS,
   type PartParams, type PartType,
@@ -106,6 +108,7 @@ const DEFAULT_TRANSFORM = (): PartTransform => ({ x: 0, y: 0, z: 0, rx: 0, ry: 0
 
 
 function HelixForge() {
+  const { locale, setLocale } = useI18n();
   const [parts, setParts] = useState<PartInstance[]>(() => [
     {
       id: crypto.randomUUID(),
@@ -253,7 +256,7 @@ function HelixForge() {
   const nextName = (t: PartType) => {
     const meta = partMeta(t);
     const existing = parts.filter((p) => p.type === t).length;
-    return `${meta.short} ${existing + 1}`;
+    return `${tr(meta.short)} ${existing + 1}`;
   };
 
   const addPart = (t: PartType) => {
@@ -612,7 +615,7 @@ function HelixForge() {
           </div>
           <Separator orientation="vertical" className="mx-2 h-6" />
           <Badge variant="outline" className="border-primary/50 text-primary">
-            {parts.length} pieza{parts.length !== 1 ? "s" : ""}
+            {tr("{{count}} piezas", { count: parts.length })}
           </Badge>
           {selected && (
             <Badge variant="outline" className="border-accent/50 text-accent">
@@ -621,6 +624,14 @@ function HelixForge() {
           )}
         </div>
         <div className="flex items-center gap-2">
+          <div className="flex items-center rounded-md border border-border p-0.5" title={tr("Idioma")}>
+            {LOCALES.map((l) => (
+              <button key={l.code} type="button" onClick={() => setLocale(l.code)} aria-pressed={locale === l.code}
+                className={`rounded px-2 py-0.5 text-[11px] font-medium transition-colors ${locale === l.code ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}>
+                {l.short}
+              </button>
+            ))}
+          </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="gap-2">
@@ -634,7 +645,7 @@ function HelixForge() {
               {PART_TYPES.map(({ type, label, Icon }) => (
                 <DropdownMenuItem key={type} onClick={() => addPart(type)}>
                   <Icon className="mr-2 h-4 w-4" />
-                  {label}
+                  {tr(label)}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -774,7 +785,7 @@ function HelixForge() {
                     {PART_TYPES.map(({ type, label, Icon }) => (
                       <DropdownMenuItem key={type} onClick={() => addPart(type)}>
                         <Icon className="mr-2 h-4 w-4" />
-                        {label}
+                        {tr(label)}
                       </DropdownMenuItem>
                     ))}
                   </DropdownMenuContent>
@@ -1028,7 +1039,7 @@ function HelixForge() {
                           {([["fork", "Horquilla"], ["single", "Oreja simple"], ["pin", "Pasador"]] as const).map(([v, label]) => (
                             <button key={v} onClick={() => updateSelectedParams("clevisStyle", v)}
                               className={`flex-1 rounded border py-1 text-[11px] transition-colors ${(p!.clevisStyle ?? "fork") === v ? "border-primary bg-primary/20 text-primary" : "border-border bg-input text-muted-foreground hover:border-primary/50"}`}>
-                              {label}
+                              {tr(label)}
                             </button>
                           ))}
                         </div>
@@ -1310,7 +1321,7 @@ function HelixForge() {
                                       : "border-border bg-input text-muted-foreground hover:border-primary/50"
                                 }`}
                               >
-                                {opt.label}
+                                {tr(opt.label)}
                               </button>
                             );
                           })}
@@ -1522,7 +1533,7 @@ function HelixForge() {
                         onChange={(e) => setDiagOpts((d) => ({ ...d, [o.key]: e.target.checked }))}
                         className="h-3 w-3 accent-destructive"
                       />
-                      <span>{o.label}</span>
+                      <span>{tr(o.label)}</span>
                     </label>
                   ))}
                 </div>
@@ -1590,7 +1601,7 @@ function HelixForge() {
                   )}
                   {selected ? (
                     <>
-                      <Row k="Tipo" v={partMeta(selected.type).label} />
+                      <Row k="Tipo" v={tr(partMeta(selected.type).label)} />
                       <Row k="Entradas" v={`${selected.params.starts}×`} />
                       <Row k="Avance/vuelta" v={`${(selected.params.pitch * selected.params.starts).toFixed(2)} mm`} />
                     </>
