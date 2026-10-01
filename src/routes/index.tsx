@@ -256,7 +256,7 @@ function HelixForge() {
   const nextName = (t: PartType) => {
     const meta = partMeta(t);
     const existing = parts.filter((p) => p.type === t).length;
-    return `${meta.short} ${existing + 1}`;
+    return `${tr(meta.short)} ${existing + 1}`;
   };
 
   const addPart = (t: PartType) => {
@@ -1321,7 +1321,7 @@ function HelixForge() {
                                       : "border-border bg-input text-muted-foreground hover:border-primary/50"
                                 }`}
                               >
-                                {opt.label}
+                                {tr(opt.label)}
                               </button>
                             );
                           })}
@@ -1533,7 +1533,7 @@ function HelixForge() {
                         onChange={(e) => setDiagOpts((d) => ({ ...d, [o.key]: e.target.checked }))}
                         className="h-3 w-3 accent-destructive"
                       />
-                      <span>{o.label}</span>
+                      <span>{tr(o.label)}</span>
                     </label>
                   ))}
                 </div>
@@ -1601,7 +1601,7 @@ function HelixForge() {
                   )}
                   {selected ? (
                     <>
-                      <Row k="Tipo" v={partMeta(selected.type).label} />
+                      <Row k="Tipo" v={tr(partMeta(selected.type).label)} />
                       <Row k="Entradas" v={`${selected.params.starts}×`} />
                       <Row k="Avance/vuelta" v={`${(selected.params.pitch * selected.params.starts).toFixed(2)} mm`} />
                     </>
