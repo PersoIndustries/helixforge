@@ -26,6 +26,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Toaster, toast } from "sonner";
 import { Viewer3D, type ViewerHandle, type MaterialPreset, type ViewMode, type PartRenderInput } from "@/components/Viewer3D";
 import { NumberControl } from "@/components/NumberControl";
+import { tr, LOCALES } from "@/i18n";
+import { useI18n } from "@/i18n/I18nProvider";
 import {
   buildPart, DEFAULT_PARAMS, PRESETS,
   type PartParams, type PartType,
@@ -106,6 +108,7 @@ const DEFAULT_TRANSFORM = (): PartTransform => ({ x: 0, y: 0, z: 0, rx: 0, ry: 0
 
 
 function HelixForge() {
+  const { locale, setLocale } = useI18n();
   const [parts, setParts] = useState<PartInstance[]>(() => [
     {
       id: crypto.randomUUID(),
@@ -612,7 +615,7 @@ function HelixForge() {
           </div>
           <Separator orientation="vertical" className="mx-2 h-6" />
           <Badge variant="outline" className="border-primary/50 text-primary">
-            {parts.length} pieza{parts.length !== 1 ? "s" : ""}
+            {tr("{{count}} piezas", { count: parts.length })}
           </Badge>
           {selected && (
             <Badge variant="outline" className="border-accent/50 text-accent">
@@ -621,6 +624,14 @@ function HelixForge() {
           )}
         </div>
         <div className="flex items-center gap-2">
+          <div className="flex items-center rounded-md border border-border p-0.5" title={tr("Idioma")}>
+            {LOCALES.map((l) => (
+              <button key={l.code} type="button" onClick={() => setLocale(l.code)} aria-pressed={locale === l.code}
+                className={`rounded px-2 py-0.5 text-[11px] font-medium transition-colors ${locale === l.code ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}>
+                {l.short}
+              </button>
+            ))}
+          </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="gap-2">
