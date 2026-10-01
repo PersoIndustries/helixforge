@@ -24,3 +24,14 @@ export const INTL_LOCALE: Record<Locale, string> = {
 export function isLocale(v: unknown): v is Locale {
   return typeof v === "string" && LOCALES.some((l) => l.code === v);
 }
+
+let currentLocale: Locale = DEFAULT_LOCALE;
+export function setCurrentLocale(l: Locale) { currentLocale = l; }
+export function getCurrentLocale() { return currentLocale; }
+type TrVars = Record<string, string | number>;
+/** Traducción global (texto fuente en español). */
+export function tr(key: string, vars?: TrVars): string {
+  const text = DICTIONARIES[currentLocale]?.[key] ?? key;
+  if (!vars) return text;
+  return text.replace(/\{\{(\w+)\}\}/g, (m, k) => (k in vars ? String(vars[k]) : m));
+}
