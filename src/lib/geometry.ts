@@ -165,15 +165,16 @@ export function trapezoidThreadProfile(height: number, pitch: number) {
 }
 
 // Rectangular flight profile (for augers / worms)
-export function flightProfile(width: number, thickness: number) {
+export function flightProfile(width: number, thickness: number, radialDivisions = 1) {
   const w = width;
   const t = thickness;
-  return [
-    { x: 0, y: -t / 2 },
-    { x: w, y: -t / 2 },
-    { x: w, y: t / 2 },
-    { x: 0, y: t / 2 },
-  ];
+  const n = Math.max(1, Math.floor(radialDivisions));
+  const pts: { x: number; y: number }[] = [];
+  // Bottom face (inner -> outer), subdivided radially
+  for (let i = 0; i <= n; i++) pts.push({ x: (w * i) / n, y: -t / 2 });
+  // Top face (outer -> inner)
+  for (let i = n; i >= 0; i--) pts.push({ x: (w * i) / n, y: t / 2 });
+  return pts;
 }
 
 /* Fillet profile: fills the concave corner between the shaft outer

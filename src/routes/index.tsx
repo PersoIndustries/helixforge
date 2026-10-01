@@ -624,14 +624,18 @@ function HelixForge() {
           )}
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex items-center rounded-md border border-border p-0.5" title={tr("Idioma")}>
-            {LOCALES.map((l) => (
-              <button key={l.code} type="button" onClick={() => setLocale(l.code)} aria-pressed={locale === l.code}
-                className={`rounded px-2 py-0.5 text-[11px] font-medium transition-colors ${locale === l.code ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}>
-                {l.short}
-              </button>
-            ))}
-          </div>
+          <Select value={locale} onValueChange={(v) => setLocale(v as typeof locale)}>
+            <SelectTrigger className="h-8 w-[120px] text-xs" aria-label={tr("Idioma")}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {LOCALES.map((l) => (
+                <SelectItem key={l.code} value={l.code} className="text-xs">
+                  {l.short} · {l.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="gap-2">
