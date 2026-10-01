@@ -357,7 +357,7 @@ function buildThreadedShaft(
       radius: placementRadius,
       pitch: p.pitch * p.starts,
       turns: turns / p.starts,
-      segmentsPerTurn: helixSegments,
+      segmentsPerTurn: p.resolution,
       handed: handedSign(p.handed),
     });
     const mesh = new THREE.Mesh(geom, material);
@@ -408,7 +408,7 @@ function buildInternalThread(
       radius: placementRadius,
       pitch: p.pitch * p.starts,
       turns: turns / p.starts,
-      segmentsPerTurn: helixSegments,
+      segmentsPerTurn: p.resolution,
       handed: handedSign(p.handed),
     });
     const mesh = new THREE.Mesh(geom, material);
