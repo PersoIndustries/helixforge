@@ -645,7 +645,7 @@ function HelixForge() {
               {PART_TYPES.map(({ type, label, Icon }) => (
                 <DropdownMenuItem key={type} onClick={() => addPart(type)}>
                   <Icon className="mr-2 h-4 w-4" />
-                  {label}
+                  {tr(label)}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -785,7 +785,7 @@ function HelixForge() {
                     {PART_TYPES.map(({ type, label, Icon }) => (
                       <DropdownMenuItem key={type} onClick={() => addPart(type)}>
                         <Icon className="mr-2 h-4 w-4" />
-                        {label}
+                        {tr(label)}
                       </DropdownMenuItem>
                     ))}
                   </DropdownMenuContent>
@@ -1039,7 +1039,7 @@ function HelixForge() {
                           {([["fork", "Horquilla"], ["single", "Oreja simple"], ["pin", "Pasador"]] as const).map(([v, label]) => (
                             <button key={v} onClick={() => updateSelectedParams("clevisStyle", v)}
                               className={`flex-1 rounded border py-1 text-[11px] transition-colors ${(p!.clevisStyle ?? "fork") === v ? "border-primary bg-primary/20 text-primary" : "border-border bg-input text-muted-foreground hover:border-primary/50"}`}>
-                              {label}
+                              {tr(label)}
                             </button>
                           ))}
                         </div>
