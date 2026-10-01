@@ -357,7 +357,7 @@ function buildThreadedShaft(
       radius: placementRadius,
       pitch: p.pitch * p.starts,
       turns: turns / p.starts,
-      segmentsPerTurn: p.resolution,
+      segmentsPerTurn: helixSegments,
       handed: handedSign(p.handed),
     });
     const mesh = new THREE.Mesh(geom, material);
@@ -408,7 +408,7 @@ function buildInternalThread(
       radius: placementRadius,
       pitch: p.pitch * p.starts,
       turns: turns / p.starts,
-      segmentsPerTurn: p.resolution,
+      segmentsPerTurn: helixSegments,
       handed: handedSign(p.handed),
     });
     const mesh = new THREE.Mesh(geom, material);
@@ -518,7 +518,14 @@ function buildAuger(p: PartParams, material: THREE.Material): THREE.Group {
   const turns = p.length / p.pitch;
   const flightW = p.flightWidth;
   const flightT = p.flightThickness ?? 2;
-  const profile = flightProfile(flightW, flightT);
+  // Topology: keep helix triangles close to square. Angular segments scale with
+  // the outer circumference and the flight face is subdivided radially to match.
+  const outerR = shaftR + flightW;
+  const targetEdge = Math.max(0.6, Math.min(2, flightT * 0.75));
+  const helixSegments = Math.min(360, Math.max(p.resolution, Math.ceil((2 * Math.PI * outerR) / targetEdge)));
+  const arcStep = (2 * Math.PI * (shaftR + flightW / 2)) / helixSegments;
+  const radialDiv = Math.max(1, Math.min(40, Math.round(flightW / Math.max(0.3, arcStep))));
+  const profile = flightProfile(flightW, flightT, radialDiv);
   const filletType = p.filletType ?? "none";
   const filletR = Math.max(0, p.filletRadius ?? 0);
   const filletH = Math.max(0, p.filletHeight ?? filletR);
@@ -534,7 +541,7 @@ function buildAuger(p: PartParams, material: THREE.Material): THREE.Group {
       radius: shaftR,
       pitch: p.pitch * p.starts,
       turns: turns / p.starts,
-      segmentsPerTurn: p.resolution,
+      segmentsPerTurn: helixSegments,
       handed: handedSign(p.handed),
     });
     const mesh = new THREE.Mesh(geom, material);
@@ -556,7 +563,7 @@ function buildAuger(p: PartParams, material: THREE.Material): THREE.Group {
           radius: shaftR,
           pitch: p.pitch * p.starts,
           turns: turns / p.starts,
-          segmentsPerTurn: p.resolution,
+          segmentsPerTurn: helixSegments,
           handed: handedSign(p.handed),
         });
         const fMesh = new THREE.Mesh(fGeom, material);
